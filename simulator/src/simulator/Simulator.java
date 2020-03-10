@@ -1,5 +1,7 @@
 package simulator;
 
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntLists;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -13,7 +15,6 @@ import java.util.Random;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.commons.math3.util.FastMath;
 import simulator.Block.State;
-import simulator.HotColdLpidGenerator.HotColdLpidGeneratorFactory;
 import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 class Block {
@@ -80,6 +81,14 @@ class Block {
 
   public double updateFreq() {
     return updateFreqSum / (count - avail);
+  }
+
+  public double priorTs() {
+    return priorTsSum / count;
+  }
+
+  public double aggTs() {
+    return aggTsSum / count;
   }
 
 }
@@ -151,6 +160,7 @@ class ZipfLpidGenerator implements LpidGenerator {
 
   private final ZipfDistribution rand;
 
+  private final IntArrayList lpidMapping;
   private final double[] probs;
   private final double harmonic;
   private final int maxLpid;
@@ -168,6 +178,12 @@ class ZipfLpidGenerator implements LpidGenerator {
     for (int i = 1; i <= maxLpid; i++) {
       probs[i] = (1.0 / FastMath.pow(i, rand.getExponent())) / harmonic;
     }
+    lpidMapping = new IntArrayList(maxLpid);
+
+    for (int i = 0; i < maxLpid; i++) {
+      lpidMapping.add(i);
+    }
+    IntLists.shuffle(lpidMapping, new Random(0));
   }
 
   @Override
@@ -182,7 +198,7 @@ class ZipfLpidGenerator implements LpidGenerator {
 
   @Override
   public int generate() {
-    return rand.sample();
+    return lpidMapping.getInt(rand.sample() - 1) + 1;
   }
 
   @Override
@@ -266,7 +282,7 @@ interface BlockSelector {
 
   }
 
-  public int selectUser(Simulator sim, int lpid, Block[] outputBlocks);
+  public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks);
 
   public int selectGC(Simulator sim, Block block, Block[] outputBlocks);
 
@@ -281,7 +297,7 @@ class NoBlockSelector implements BlockSelector {
   }
 
   @Override
-  public int selectUser(Simulator sim, int lpid, Block[] outputBlocks) {
+  public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks) {
     return 0;
   }
 
@@ -311,8 +327,20 @@ class AdaptiveBlockSelector implements BlockSelector {
   }
 
   @Override
-  public int selectUser(Simulator sim, int lpid, Block[] outputBlocks) {
-    return 0;
+  public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks) {
+    int index = 0;
+    for (int i = 0; i < outputBlocks.length; i++) {
+      if (outputBlocks[i].count == 0) {
+        return i;
+      }
+
+      double diff1 = Math.abs(priorTs - outputBlocks[index].priorTs());
+      double diff2 = Math.abs(priorTs - outputBlocks[i].priorTs());
+      if (diff2 < diff1) {
+        index = i;
+      }
+    }
+    return index;
   }
 
   @Override
@@ -344,7 +372,7 @@ class OptBlockSelector implements BlockSelector {
   }
 
   @Override
-  public int selectUser(Simulator simulator, int lpid, Block[] outputBlocks) {
+  public int selectUser(Simulator simulator, int lpid, long priorTs, Block[] outputBlocks) {
     assert outputBlocks.length >= 2;
     if (simulator.gen.getProb(lpid) < baseProb) {
       return COLD_INDEX;
@@ -378,7 +406,7 @@ class AgeBlockSelector implements BlockSelector {
   }
 
   @Override
-  public int selectUser(Simulator sim, int lpid, Block[] outputBlocks) {
+  public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks) {
     return 0;
   }
 
@@ -399,7 +427,7 @@ class RoundRobinSelector implements BlockSelector {
   }
 
   @Override
-  public int selectUser(Simulator sim, int lpid, Block[] outputBlocks) {
+  public int selectUser(Simulator sim, int lpid, long prioriTs, Block[] outputBlocks) {
     userIndex = (userIndex + 1) % outputBlocks.length;
     return userIndex;
   }
@@ -572,18 +600,15 @@ class Param {
 
 public class Simulator {
 
-  public static final int TOTAL_BLOCKS = 1280;
-  // public static final int TOTAL_BLOCKS = 1024;
+  public static final int TOTAL_BLOCKS = 12800; // 100GB
 
   public static final int BLOCK_SIZE = 2048; // 8MB
-
-  // public static final int BLOCK_SIZE = 256; // 2MB
 
   public static final int TOTAL_PAGES = TOTAL_BLOCKS * BLOCK_SIZE;
 
   public static final int GC_START_BLOCKS = 32;
 
-  public static final int GC_STOP_BLOCKS = 64;
+  public static final int GC_STOP_BLOCKS = 96;
 
   public final Block[] blocks;
   public final Deque<Block> freeBlocks = new LinkedList<>();
@@ -646,24 +671,23 @@ public class Simulator {
   }
 
   private void write(int lpid) {
-    int index = param.blockSelector.selectUser(this, lpid, userBlocks);
+    long addr = mappingTable[lpid];
+    long priorTs = 0;
 
+    if (addr != -1) {
+      int blockIndex = getBlockIndex(addr);
+      assert (blocks[blockIndex].state != State.Free);
+      blocks[blockIndex].invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
+      priorTs = (long) blocks[blockIndex].aggTs();
+    }
+    int index = param.blockSelector.selectUser(this, lpid, priorTs, userBlocks);
     if (userBlocks[index].count == BLOCK_SIZE) {
       userBlocks[index].state = State.Used;
       userBlocks[index].closedTs = currentTs;
       userBlocks[index] = getFreeBlock(false);
     }
+    userBlocks[index].add(lpid, currentTs, priorTs, gen.getProb(lpid), currentTs);
 
-    long addr = mappingTable[lpid];
-    if (addr != -1) {
-      int blockIndex = getBlockIndex(addr);
-      assert (blocks[blockIndex].state != State.Free);
-      blocks[blockIndex].invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
-      userBlocks[index].add(lpid, currentTs, blocks[blockIndex].aggTsSum / blocks[blockIndex].count,
-        gen.getProb(lpid), currentTs);
-    } else {
-      userBlocks[index].add(lpid, currentTs, 0, gen.getProb(lpid), currentTs);
-    }
     currentTs++;
     updateMappingTable(lpid, userBlocks[index].blockIndex, userBlocks[index].count - 1);
     while (freeBlocks.size() <= GC_START_BLOCKS) {
@@ -695,7 +719,7 @@ public class Simulator {
     for (Block minBlock : list) {
       for (int i = 0; i < BLOCK_SIZE; i++) {
         int lpid = minBlock.lpids[i];
-        double priorTs = minBlock.priorTsSum / BLOCK_SIZE;
+        double priorTs = minBlock.priorTs();
         double aggTs = minBlock.aggTsSum / BLOCK_SIZE;
         if (lpid >= 0) {
           movedPages++;
@@ -761,86 +785,16 @@ public class Simulator {
   }
 
   public static void main(String[] args) throws Exception {
-    runHotCold();
-    // runZipf();
-    // runHotColdOpt();
+    runZipf();
   }
 
-  public static void runHotColdOpt() throws IOException {
-    double[] factors = new double[] { 0.8 };
-
-    int[] hots = new int[] { 20 };
-
-    Comparator<Block> noSorter = (b1, b2) -> 0;
-
-    BlockSelector optSelector = new OptBlockSelector();
-    int lines = 2;
-    for (int hot : hots) {
-      LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(hot);
-      Param[] params =
-          new Param[] { new Param(gen, optSelector, new MaxAvail(), lines, lines, noSorter),
-              new Param(gen, optSelector, new MinDeclinePriorTs(), lines, lines, noSorter),
-              new Param(gen, optSelector, new MinDeclineOptUpdate(), lines, lines, noSorter),
-              new Param(gen, optSelector, new Berkeley(), lines, lines, noSorter) };
-      run(params, factors, "test-" + hot + "-opt.log", 100);
-    }
-
-  }
-
-  public static void runHotCold() throws IOException, Exception {
-    double[] factors = new double[] { 0.6, 0.7, 0.8, 0.9 };
-
-    int[] hots = new int[] { 10, 20, 40 };
-    // int[] hots = new int[] { 40 };
+  private static void runZipf() throws IOException, InterruptedException {
+    double[] factors = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
+    // double[] skews = new double[] { 0, 0.1, 0.5, 0.99, 1.35 };
+    double[] skews = new double[] { 0.99 };
 
     Comparator<Block> newestSorter = (b1, b2) -> Long.compare(b1.newestTs, b2.newestTs);
     Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
-    Comparator<Block> closedTsSorter = (b1, b2) -> Long.compare(b1.closedTs, b2.closedTs);
-    Comparator<Block> updateFrepSorter =
-        (b1, b2) -> Double.compare(b1.updateFreq(), b2.updateFreq());
-
-    BlockSelector noSelector = new NoBlockSelector();
-    BlockSelector adaptSelector = new AdaptiveBlockSelector();
-    Thread[] threads = new Thread[hots.length];
-
-    for (int i = 0; i < hots.length; i++) {
-      final int hot = hots[i];
-      threads[i] = new Thread(new Runnable() {
-        @Override
-        public void run() {
-          LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(hot);
-          Param[] params =
-              new Param[] { new Param(gen, adaptSelector, new MaxAvail(), 1, 3, closedTsSorter),
-                  new Param(gen, adaptSelector, new MinDeclinePriorTs(), 1, 3, closedTsSorter),
-                  new Param(gen, adaptSelector, new MinDeclineOptUpdate(), 1, 3, closedTsSorter),
-                  new Param(gen, noSelector, new Berkeley(), 1, 1, newestSorter) };
-          try {
-            Simulator.run(params, factors, "test-" + hot + ".log", 100);
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
-        }
-      });
-      threads[i].start();
-    }
-
-    for (int i = 0; i < hots.length; i++) {
-      threads[i].join();
-    }
-  }
-
-  public static void runZipf() throws IOException, InterruptedException {
-    double[] factors = new double[] { 0.6, 0.7, 0.8, 0.9 };
-    double[] skews = new double[] { 0.1, 0.5, 0.99, 1.35 };
-
-    Comparator<Block> newestSorter = (b1, b2) -> Long.compare(b1.newestTs, b2.newestTs);
-    Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
-    Comparator<Block> closedTsSorter = (b1, b2) -> Long.compare(b1.closedTs, b2.closedTs);
-    Comparator<Block> updateFrepSorter =
-        (b1, b2) -> Double.compare(b1.updateFreq(), b2.updateFreq());
-
-    BlockSelector noSelector = new NoBlockSelector();
-    BlockSelector adaptiveSelector = new AdaptiveBlockSelector();
 
     Thread[] threads = new Thread[skews.length];
     for (int i = 0; i < skews.length; i++) {
@@ -849,11 +803,12 @@ public class Simulator {
         @Override
         public void run() {
           LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-          Param[] params = new Param[] {
-              new Param(gen, new NoBlockSelector(), new MaxAvail(), 1, 1, closedTsSorter),
-              new Param(gen, noSelector, new MinDeclinePriorTs(), 1, 1, closedTsSorter),
-              new Param(gen, noSelector, new MinDeclineOptUpdate(), 1, 1, closedTsSorter),
-              new Param(gen, new NoBlockSelector(), new Berkeley(), 1, 1, newestSorter) };
+          Param[] params =
+              new Param[] { new Param(gen, new NoBlockSelector(), new Oldest(), 1, 1, newestSorter),
+                  new Param(gen, new NoBlockSelector(), new MaxAvail(), 1, 1, newestSorter),
+                  new Param(gen, new NoBlockSelector(), new MinDeclinePriorTs(), 1, 1,
+                      priorTsSorter),
+                  new Param(gen, new NoBlockSelector(), new Berkeley(), 1, 1, newestSorter) };
           try {
             Simulator.run(params, factors, "test-" + skew + ".log", 100);
           } catch (IOException e) {
