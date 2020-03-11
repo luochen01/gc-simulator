@@ -44,7 +44,7 @@ public class GCExperiment {
             new ThreadPoolExecutor(4, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        double[] skews = new double[] { 0.001, 0.1, 0.5, 0.99, 1.35 };
+        double[] skews = new double[] { 0, 0.1, 0.5, 0.99, 1.35 };
         for (double skew : skews) {
             varFillFactor(skew);
         }

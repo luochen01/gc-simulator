@@ -2,6 +2,8 @@ package simulator;
 
 import java.util.Random;
 
+import org.apache.commons.math3.distribution.IntegerDistribution;
+import org.apache.commons.math3.distribution.UniformIntegerDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.commons.math3.util.FastMath;
 
@@ -73,26 +75,35 @@ class ZipfLpidGenerator implements LpidGenerator {
         }
     }
 
-    private final ZipfDistribution rand;
+    private final IntegerDistribution rand;
 
     private final IntArrayList lpidMapping;
     private final double[] probs;
-    private final double harmonic;
+    private final double exp;
     private final int maxLpid;
 
     public ZipfLpidGenerator(int maxLpid, double exp) {
+        this.exp = exp;
         this.maxLpid = maxLpid;
-        this.rand = new ZipfDistribution(maxLpid, exp);
-        double h = 0;
-        h = 0;
-        for (int k = maxLpid; k > 0; --k) {
-            h += 1.0 / FastMath.pow(k, rand.getExponent());
+        if (exp == 0) {
+            this.rand = new UniformIntegerDistribution(1, maxLpid);
+            probs = new double[maxLpid + 1];
+            for (int i = 1; i <= maxLpid; i++) {
+                probs[i] = 1.0 / maxLpid;
+            }
+        } else {
+            this.rand = new ZipfDistribution(maxLpid, exp);
+            double h = 0;
+            for (int k = maxLpid; k > 0; --k) {
+                h += 1.0 / FastMath.pow(k, exp);
+            }
+            double harmonic = h;
+            probs = new double[maxLpid + 1];
+            for (int i = 1; i <= maxLpid; i++) {
+                probs[i] = (1.0 / FastMath.pow(i, exp)) / harmonic;
+            }
         }
-        harmonic = h;
-        probs = new double[maxLpid + 1];
-        for (int i = 1; i <= maxLpid; i++) {
-            probs[i] = (1.0 / FastMath.pow(i, rand.getExponent())) / harmonic;
-        }
+
         lpidMapping = new IntArrayList(maxLpid);
 
         for (int i = 0; i < maxLpid; i++) {
@@ -108,7 +119,7 @@ class ZipfLpidGenerator implements LpidGenerator {
 
     @Override
     public String name() {
-        return "zipf-" + rand.getExponent();
+        return "zipf-" + exp;
     }
 
     @Override
