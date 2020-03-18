@@ -90,7 +90,7 @@ public class TraceExperiment {
                 Simulator sim = new Simulator(param, Simulator.TOTAL_PAGES);
                 FileMapper mapper = new FileMapper(Simulator.TOTAL_PAGES, sim);
                 TraceReader loadReader = new TraceReader(basePath + "load-" + scaleFactor + ".trace");
-                applyTrace(loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Simulator.TOTAL_PAGES);
+                applyTrace("load", loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Simulator.TOTAL_PAGES);
 
                 System.out.println(String.format("Scale factor %d completed loading. Current pages %.3f: %d/%d",
                         scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
@@ -98,7 +98,7 @@ public class TraceExperiment {
                 // sim.resetStats();
 
                 TraceReader runReader = new TraceReader(basePath + "run-" + scaleFactor + ".trace");
-                applyTrace(runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, stopPages);
+                applyTrace("run", runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, stopPages);
 
                 System.out.println(String.format("Scale factor %d completed running. Current pages %.3f: %d/%d",
                         scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
@@ -109,8 +109,8 @@ public class TraceExperiment {
         });
     }
 
-    private static void applyTrace(TraceReader reader, FileMapper mapper, Simulator sim, int progress, int stopPages)
-            throws IOException {
+    private static void applyTrace(String phase, TraceReader reader, FileMapper mapper, Simulator sim, int progress,
+            int stopPages) throws IOException {
         TraceOperation op = new TraceOperation();
         int i = 0;
         while (reader.read(op)) {
@@ -122,7 +122,7 @@ public class TraceExperiment {
                 throw new IllegalStateException("Unknown operation " + op.op);
             }
             if (++i % progress == 0) {
-                System.out.println(String.format("Completed %d operations. Current pages %d/%d ", i,
+                System.out.println(String.format("%s completed %d operations. Current pages %d/%d ", phase, i,
                         mapper.getUsedLpids(), Simulator.TOTAL_PAGES));
             }
             if (mapper.getUsedLpids() >= stopPages) {
