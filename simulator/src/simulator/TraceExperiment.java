@@ -16,7 +16,7 @@ import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 public class TraceExperiment {
 
-    private static final String basePath = "/home/luochen/experiment/write";
+    private static final String basePath = "/home/luochen/experiment/write/";
     //
     private static final int[] scaleFactors = new int[] { 500, 600, 700, 800, 900 };
     private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9, 0.95 };
