@@ -31,13 +31,16 @@ public class FileMapper {
     private final IntArrayFIFOQueue lpidQueue;
     private final int numLpids;
 
+    private final Simulator sim;
+
     // file id -> (page id -> lpid)
     private final Int2ObjectMap<Int2IntMap> fileMap = new Int2ObjectOpenHashMap<>();
 
-    public FileMapper(int numLpids) {
+    public FileMapper(int numLpids, Simulator sim) {
+        this.sim = sim;
         this.numLpids = numLpids;
         this.lpidQueue = new IntArrayFIFOQueue(numLpids);
-        for (int i = 1; i <= numLpids; i++) {
+        for (int i = 1; i < numLpids; i++) {
             this.lpidQueue.enqueue(i);
         }
     }
@@ -60,7 +63,9 @@ public class FileMapper {
 
         ObjectIterator<Int2IntMap.Entry> it = ((FastEntrySet) pageMap.int2IntEntrySet()).fastIterator();
         while (it.hasNext()) {
-            lpidQueue.enqueue(it.next().getIntValue());
+            int lpid = it.next().getIntValue();
+            lpidQueue.enqueue(lpid);
+            sim.delete(lpid);
         }
     }
 

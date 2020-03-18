@@ -17,17 +17,19 @@ import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 public class TraceExperiment {
 
     private static final String basePath = "/home/luochen/experiment/write/";
-    //
     private static final int[] scaleFactors = new int[] { 500, 600, 700, 800, 900 };
     private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9, 0.95 };
 
-    //private static final int[] scaleFactors = new int[] { 500 };
-    //private static final double[] stopThresholds = new double[] { 0.6 };
+    //    private static final String basePath = "/Users/luochen/Desktop/trace/";
+    //    private static final int[] scaleFactors = new int[] { 500 };
+    //    private static final double[] stopThresholds = new double[] { 0.6 };
 
     private static final Random random = new Random(0);
 
+    private static final int THREADS = 1;
+
     private static final ThreadPoolExecutor executor =
-            new ThreadPoolExecutor(4, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+            new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
         runTrace();
@@ -86,8 +88,7 @@ public class TraceExperiment {
             public Result call() throws Exception {
                 int stopPages = (int) (Simulator.TOTAL_PAGES * stopThreshold);
                 Simulator sim = new Simulator(param, Simulator.TOTAL_PAGES);
-
-                FileMapper mapper = new FileMapper(Simulator.TOTAL_PAGES);
+                FileMapper mapper = new FileMapper(Simulator.TOTAL_PAGES, sim);
                 TraceReader loadReader = new TraceReader(basePath + "load-" + scaleFactor + ".trace");
                 applyTrace(loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Simulator.TOTAL_PAGES);
 

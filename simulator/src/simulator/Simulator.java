@@ -122,6 +122,16 @@ public class Simulator {
         }
     }
 
+    public void delete(int lpid) {
+        long addr = mappingTable[lpid];
+        if (addr != -1) {
+            int blockIndex = getBlockIndex(addr);
+            assert (blocks[blockIndex].state != State.Free);
+            blocks[blockIndex].invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
+            mappingTable[lpid] = -1;
+        }
+    }
+
     public void write(int lpid) {
         long addr = mappingTable[lpid];
         long priorTs = 0;
