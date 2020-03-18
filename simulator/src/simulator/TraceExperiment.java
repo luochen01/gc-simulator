@@ -17,8 +17,8 @@ import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 public class TraceExperiment {
 
     private static final String basePath = "/home/luochen/experiment/write/";
-    private static final int[] scaleFactors = new int[] { 500, 600, 700, 800, 900 };
-    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9, 0.95 };
+    private static final int[] scaleFactors = new int[] { 500, 600, 700, 800 };
+    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
 
     //    private static final String basePath = "/Users/luochen/Desktop/trace/";
     //    private static final int[] scaleFactors = new int[] { 500 };
@@ -95,7 +95,7 @@ public class TraceExperiment {
                 System.out.println(String.format("Scale factor %d completed loading. Current pages %.3f: %d/%d",
                         scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
                         Simulator.TOTAL_PAGES));
-                sim.resetStats();
+                // sim.resetStats();
 
                 TraceReader runReader = new TraceReader(basePath + "run-" + scaleFactor + ".trace");
                 applyTrace(runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, stopPages);
