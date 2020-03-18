@@ -26,7 +26,7 @@ public class TraceExperiment {
 
     private static final Random random = new Random(0);
 
-    private static final int THREADS = 1;
+    private static final int THREADS = 4;
 
     private static final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
