@@ -56,8 +56,9 @@ public class Simulator {
     public long currentTs = 0;
     public long movedPages = 0;
     public long movedBlocks = 0;
+    public long writes = 0;
 
-    public long prevTs = 0;
+    public long prevWrites = 0;
     public long prevMovedPages = 0;
     public long prevMovedBlocks = 0;
 
@@ -114,15 +115,14 @@ public class Simulator {
                     formatGCCost()));
 
             if (i == parts / 2) {
-                prevTs = currentTs;
+                prevWrites = writes;
                 prevMovedBlocks = movedBlocks;
                 prevMovedPages = movedPages;
             }
         }
-
     }
 
-    private void write(int lpid) {
+    public void write(int lpid) {
         long addr = mappingTable[lpid];
         long priorTs = 0;
 
@@ -140,6 +140,7 @@ public class Simulator {
         }
         userBlocks[index].add(lpid, currentTs, priorTs, gen.getProb(lpid), currentTs);
 
+        writes++;
         currentTs++;
         updateMappingTable(lpid, userBlocks[index].blockIndex, userBlocks[index].count - 1);
         while (freeBlocks.size() <= GC_START_BLOCKS) {
@@ -225,9 +226,9 @@ public class Simulator {
 
     public String formatGCCost() {
         long movedPages = this.movedPages - prevMovedPages;
-        long ts = currentTs - prevTs;
+        long writes = this.writes - prevWrites;
 
-        return String.format("%.3f", (double) movedPages / Math.max(1, ts));
+        return String.format("%.3f", (double) movedPages / Math.max(1, writes));
     }
 
     public String formatE() {
@@ -242,6 +243,15 @@ public class Simulator {
         long movedBlocks = this.movedBlocks - prevMovedBlocks;
 
         return String.format("%.3f", 2.0 / (1 - (double) movedPages / BLOCK_SIZE / movedBlocks));
+    }
+
+    public void resetStats() {
+        this.movedBlocks = 0;
+        this.prevMovedBlocks = 0;
+        this.movedPages = 0;
+        this.prevMovedPages = 0;
+        this.writes = 0;
+        this.prevWrites = 0;
     }
 
 }
