@@ -58,7 +58,7 @@ public class FileMapper {
     public void delete(int file) {
         Int2IntMap pageMap = fileMap.remove(file);
         if (pageMap == null) {
-            throw new IllegalStateException("Cannot find file " + file);
+            return;
         }
 
         ObjectIterator<Int2IntMap.Entry> it = ((FastEntrySet) pageMap.int2IntEntrySet()).fastIterator();
