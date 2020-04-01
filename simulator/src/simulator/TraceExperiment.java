@@ -16,13 +16,13 @@ import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 public class TraceExperiment {
     //
-    //    private static final String basePath = "/home/luochen/experiment/write/";
-    //    private static final int[] scaleFactors = new int[] { 500, 600, 700, 800 };
-    //    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
+    private static final String basePath = "/home/luochen/experiment/memory/";
+    private static final int[] scaleFactors = new int[] { 350, 420, 490, 560 };
+    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
 
-    private static final String basePath = "/Users/luochen/Desktop/trace/";
-    private static final int[] scaleFactors = new int[] { 500 };
-    private static final double[] stopThresholds = new double[] { 0.6 };
+    //    private static final String basePath = "/Users/luochen/Desktop/trace/";
+    //    private static final int[] scaleFactors = new int[] { 500 };
+    //    private static final double[] stopThresholds = new double[] { 0.6 };
 
     private static final Random random = new Random(0);
 
