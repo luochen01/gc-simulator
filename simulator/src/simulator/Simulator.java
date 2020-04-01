@@ -47,7 +47,7 @@ public class Simulator {
 
     public static final int GC_START_BLOCKS = 32;
 
-    public static final int GC_STOP_BLOCKS = 96;
+    public static final int GC_STOP_BLOCKS = 64;
 
     public final Block[] blocks;
     public final Deque<Block> freeBlocks = new LinkedList<>();
