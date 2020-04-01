@@ -11,27 +11,27 @@ import java.util.PriorityQueue;
 import simulator.Block.State;
 
 class Param {
-    final BlockSelector blockSelector;
+    private final BlockSelector blockSelector;
     final ScoreComputer scoreComputer;
     final LpidGeneratorFactory genFactory;
-    final int userLines;
-    final int gcLines;
 
     final Comparator<Block> sorter;
 
     public Param(LpidGeneratorFactory genFactory, BlockSelector blockSelector, ScoreComputer scoreComputer,
-            int userLines, int gcLines, Comparator<Block> sorter) {
+            Comparator<Block> sorter) {
         this.genFactory = genFactory;
         this.blockSelector = blockSelector;
         this.scoreComputer = scoreComputer;
-        this.userLines = userLines;
-        this.gcLines = gcLines;
         this.sorter = sorter;
+    }
+
+    public BlockSelector createBlockSelector() {
+        return blockSelector.clone();
     }
 
     @Override
     public String toString() {
-        return genFactory + "/" + blockSelector.name() + "/" + scoreComputer.name() + "/" + userLines + "/" + gcLines;
+        return genFactory + "/" + blockSelector.name() + "/" + scoreComputer.name();
     }
 
 }
@@ -68,6 +68,7 @@ public class Simulator {
     public final Param param;
 
     public final LpidGenerator gen;
+    public final BlockSelector blockSelector;
 
     private final PriorityQueue<Block> queue = new PriorityQueue<>((b1, b2) -> Double.compare(b1.score, b2.score));
     private final List<Block> list = new ArrayList<>();
@@ -81,28 +82,34 @@ public class Simulator {
             blocks[i].reset();
             freeBlocks.addLast(blocks[i]);
         }
-        userBlocks = new Block[param.userLines];
-        for (int i = 0; i < param.userLines; i++) {
+        this.gen = param.genFactory.create(maxLpid);
+        this.blockSelector = param.createBlockSelector();
+        int lines = this.blockSelector.init(this);
+        userBlocks = new Block[lines];
+        for (int i = 0; i < lines; i++) {
             userBlocks[i] = getFreeBlock(false);
         }
-        gcBlocks = new Block[param.gcLines];
-        for (int i = 0; i < param.gcLines; i++) {
+        gcBlocks = new Block[lines];
+        for (int i = 0; i < lines; i++) {
             gcBlocks[i] = getFreeBlock(true);
         }
-        this.gen = param.genFactory.create(maxLpid);
-        param.blockSelector.init(this);
     }
 
     public void load(int[] lpids) {
+        int progress = lpids.length / 10;
         for (int i = 0; i < lpids.length; i++) {
             write(lpids[i]);
+            if (i % progress == 0) {
+                System.out.println(String.format("Simulation %s/%s loaded %d/%d.", gen.name(),
+                        param.scoreComputer.name(), i, progress));
+            }
         }
+        resetStats();
     }
 
     public void run(long totalPages) {
         // load the dataset
-
-        int parts = 10;
+        int parts = 100;
         long progress = totalPages / parts;
 
         for (int i = 1; i <= 10; i++) {
@@ -142,7 +149,7 @@ public class Simulator {
             blocks[blockIndex].invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
             priorTs = (long) blocks[blockIndex].aggTs();
         }
-        int index = param.blockSelector.selectUser(this, lpid, priorTs, userBlocks);
+        int index = this.blockSelector.selectUser(this, lpid, priorTs, userBlocks);
         if (userBlocks[index].count == BLOCK_SIZE) {
             userBlocks[index].state = State.Used;
             userBlocks[index].closedTs = currentTs;
@@ -186,7 +193,7 @@ public class Simulator {
                 double aggTs = minBlock.aggTsSum / BLOCK_SIZE;
                 if (lpid >= 0) {
                     movedPages++;
-                    int index = param.blockSelector.selectGC(this, minBlock, gcBlocks);
+                    int index = this.blockSelector.selectGC(this, lpid, minBlock, gcBlocks);
                     if (gcBlocks[index].count == BLOCK_SIZE) {
                         gcBlocks[index].state = State.Used;
                         gcBlocks[index].closedTs = currentTs;

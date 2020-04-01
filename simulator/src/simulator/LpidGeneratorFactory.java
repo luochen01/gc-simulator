@@ -7,9 +7,6 @@ import org.apache.commons.math3.distribution.UniformIntegerDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.commons.math3.util.FastMath;
 
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntLists;
-
 interface LpidGenerator {
     public int generate();
 
@@ -18,6 +15,10 @@ interface LpidGenerator {
     public int maxLpid();
 
     public String name();
+
+    public double getMinProb();
+
+    public double getMaxProb();
 }
 
 @FunctionalInterface
@@ -42,6 +43,16 @@ class UniformLpidGenerator implements LpidGenerator {
 
     @Override
     public double getProb(int lpid) {
+        return prob;
+    }
+
+    @Override
+    public double getMinProb() {
+        return prob;
+    }
+
+    @Override
+    public double getMaxProb() {
         return prob;
     }
 
@@ -77,7 +88,6 @@ class ZipfLpidGenerator implements LpidGenerator {
 
     private final IntegerDistribution rand;
 
-    private final IntArrayList lpidMapping;
     private final double[] probs;
     private final double exp;
     private final int maxLpid;
@@ -103,13 +113,6 @@ class ZipfLpidGenerator implements LpidGenerator {
                 probs[i] = (1.0 / FastMath.pow(i, exp)) / harmonic;
             }
         }
-
-        lpidMapping = new IntArrayList(maxLpid);
-
-        for (int i = 0; i < maxLpid; i++) {
-            lpidMapping.add(i);
-        }
-        IntLists.shuffle(lpidMapping, new Random(0));
     }
 
     @Override
@@ -124,7 +127,17 @@ class ZipfLpidGenerator implements LpidGenerator {
 
     @Override
     public int generate() {
-        return lpidMapping.getInt(rand.sample() - 1) + 1;
+        return rand.sample();
+    }
+
+    @Override
+    public double getMinProb() {
+        return probs[maxLpid];
+    }
+
+    @Override
+    public double getMaxProb() {
+        return probs[1];
     }
 
     @Override
@@ -168,10 +181,18 @@ class HotColdLpidGenerator implements LpidGenerator {
         this.hotSkew = hotSkew;
         this.numHot = maxLpid / 100 * hotSkew;
         this.numCold = maxLpid / 100 * (100 - hotSkew);
-        // assert (numCold + numHot == maxLpid);
-
         this.coldProb = hotSkew / 100.0 / numCold;
         this.hotProb = (100 - hotSkew) / 100.0 / numHot;
+    }
+
+    @Override
+    public double getMaxProb() {
+        return hotProb;
+    }
+
+    @Override
+    public double getMinProb() {
+        return coldProb;
     }
 
     @Override

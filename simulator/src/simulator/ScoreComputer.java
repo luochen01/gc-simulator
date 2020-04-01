@@ -26,6 +26,9 @@ class MinDeclinePriorTs implements ScoreComputer {
 class MinDeclineOptUpdate implements ScoreComputer {
     @Override
     public double compute(Simulator sim, Block block) {
+        if (block.count - block.avail == 0) {
+            return 0;
+        }
         double E = (double) block.avail / Simulator.BLOCK_SIZE;
         double updateFreq = block.updateFreqSum / (block.count - block.avail);
         return updateFreq * (1 - E) / (E * E);

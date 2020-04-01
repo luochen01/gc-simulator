@@ -15,14 +15,14 @@ import java.util.concurrent.TimeUnit;
 import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 public class TraceExperiment {
+    //
+    //    private static final String basePath = "/home/luochen/experiment/write/";
+    //    private static final int[] scaleFactors = new int[] { 500, 600, 700, 800 };
+    //    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
 
-    private static final String basePath = "/home/luochen/experiment/write/";
-    private static final int[] scaleFactors = new int[] { 500, 600, 700, 800 };
-    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
-
-//    private static final String basePath = "/Users/luochen/Desktop/trace/";
-//    private static final int[] scaleFactors = new int[] { 500 };
-//    private static final double[] stopThresholds = new double[] { 0.6 };
+    private static final String basePath = "/Users/luochen/Desktop/trace/";
+    private static final int[] scaleFactors = new int[] { 500 };
+    private static final double[] stopThresholds = new double[] { 0.6 };
 
     private static final Random random = new Random(0);
 
@@ -41,10 +41,10 @@ public class TraceExperiment {
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(0.0);
-        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), 1, 1, priorTsSorter) };
+        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), newestSorter),
+                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), newestSorter),
+                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), newestSorter),
+                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), priorTsSorter) };
 
         Future[][] results = new Future[scaleFactors.length][params.length];
 

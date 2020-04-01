@@ -1,15 +1,21 @@
 package simulator;
 
-interface BlockSelector {
-    default public void init(Simulator sim) {
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
-    }
+import com.google.common.base.Preconditions;
+
+interface BlockSelector {
+    public int init(Simulator sim);
 
     public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks);
 
-    public int selectGC(Simulator sim, Block block, Block[] outputBlocks);
+    public int selectGC(Simulator sim, int lpid, Block block, Block[] outputBlocks);
 
     public String name();
+
+    public BlockSelector clone();
 }
 
 class NoBlockSelector implements BlockSelector {
@@ -17,6 +23,11 @@ class NoBlockSelector implements BlockSelector {
     public static final NoBlockSelector INSTANCE = new NoBlockSelector();
 
     private NoBlockSelector() {
+    }
+
+    @Override
+    public int init(Simulator sim) {
+        return 1;
     }
 
     @Override
@@ -30,67 +41,98 @@ class NoBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectGC(Simulator sim, Block block, Block[] outputBlocks) {
+    public int selectGC(Simulator sim, int lpid, Block block, Block[] outputBlocks) {
         return 0;
+    }
+
+    @Override
+    public NoBlockSelector clone() {
+        return this;
     }
 }
 
-class AdaptiveBlockSelector implements BlockSelector {
-    @Override
-    public int selectGC(Simulator sim, Block block, Block[] outputBlocks) {
-        int index = 0;
-        double aggTs = block.aggTsSum;
-        for (int i = 0; i < outputBlocks.length; i++) {
-            if (outputBlocks[i].count == 0) {
-                return i;
-            }
+class OptBlockSelector implements BlockSelector {
+    private double probs[];
+    private int[] indexes;
 
-            double diff1 = Math.abs(aggTs - outputBlocks[index].aggTsSum);
-            double diff2 = Math.abs(aggTs - outputBlocks[i].aggTsSum);
-            if (diff2 < diff1) {
-                index = i;
-            }
+    @Override
+    public synchronized int init(Simulator sim) {
+        if (probs != null) {
+            return probs.length;
         }
-        return index;
+        LpidGenerator gen = sim.gen;
+        indexes = new int[gen.maxLpid() + 1];
+        Arrays.fill(indexes, -1);
+        double min = gen.getMinProb();
+        double max = gen.getMaxProb();
+        Preconditions.checkState(min <= max);
+        List<Double> list = new ArrayList<>();
+        double curr = 2 * min;
+        while (curr <= max) {
+            list.add(curr);
+            curr *= 2;
+        }
+        list.add(curr);
+        System.out.println(name() + " has " + list.size() + " lines");
+        Preconditions.checkState(list.size() >= 1);
+        probs = new double[list.size()];
+        for (int i = 0; i < probs.length; i++) {
+            probs[i] = list.get(i);
+        }
+
+        int pos = 0;
+
+        for (int i = gen.maxLpid(); i >= 1; i--) {
+            while (gen.getProb(i) > probs[pos]) {
+                pos++;
+            }
+            indexes[i] = pos;
+        }
+
+        return probs.length;
     }
 
     @Override
-    public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks) {
-        int index = 0;
-        for (int i = 0; i < outputBlocks.length; i++) {
-            if (outputBlocks[i].count == 0) {
-                return i;
-            }
-
-            double diff1 = Math.abs(priorTs - outputBlocks[index].priorTs());
-            double diff2 = Math.abs(priorTs - outputBlocks[i].priorTs());
-            if (diff2 < diff1) {
-                index = i;
-            }
-        }
-        return index;
+    public OptBlockSelector clone() {
+        return new OptBlockSelector();
     }
 
     @Override
     public String name() {
-        return "timestamp";
+        return "opt";
+    }
+
+    @Override
+    public int selectGC(Simulator sim, int lpid, Block block, Block[] outputBlocks) {
+        return indexes[lpid];
+    }
+
+    @Override
+    public int selectUser(Simulator sim, int lpid, long priorTs, Block[] outputBlocks) {
+        return indexes[lpid];
     }
 
 }
 
-class OptBlockSelector implements BlockSelector {
+class ColdHotBlockSelector implements BlockSelector {
     private static final int COLD_INDEX = 0;
     private static final int HOT_INDEX = 1;
 
     private double baseProb;
 
     @Override
-    public void init(Simulator sim) {
+    public int init(Simulator sim) {
         baseProb = 1.0 / sim.gen.maxLpid();
+        return 2;
     }
 
     @Override
-    public int selectGC(Simulator simulator, Block block, Block[] outputBlocks) {
+    public ColdHotBlockSelector clone() {
+        return new ColdHotBlockSelector();
+    }
+
+    @Override
+    public int selectGC(Simulator simulator, int lpid, Block block, Block[] outputBlocks) {
         assert outputBlocks.length >= 2;
         if (block.updateFreq() < baseProb) {
             return COLD_INDEX;

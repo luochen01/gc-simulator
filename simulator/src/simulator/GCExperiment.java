@@ -36,16 +36,18 @@ class Result {
 
 public class GCExperiment {
 
-    private static final int SCALE_FACTOR = 100;
+    private static final int SCALE_FACTOR = 1000;
 
     private static final Random random = new Random(0);
 
+    private static final int THREADS = 4;
+
     private static final ThreadPoolExecutor executor =
-            new ThreadPoolExecutor(4, 4, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+            new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        //double[] skews = new double[] { 0, 0.1, 0.5, 0.99, 1.35 };
-        double[] skews = new double[] { 0.75 };
+        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
+        //double[] skews = new double[] { 1 };
         for (double skew : skews) {
             varFillFactor(skew);
         }
@@ -54,15 +56,18 @@ public class GCExperiment {
 
     private static void varFillFactor(double skew) throws IOException, InterruptedException, ExecutionException {
         double[] factors = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
+        //double[] factors = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
 
         Comparator<Block> newestSorter = (b1, b2) -> Long.compare(b1.newestTs, b2.newestTs);
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), 1, 1, newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), 1, 1, priorTsSorter) };
+        //        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), 1, 1, newestSorter),
+        //                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), 1, 1, newestSorter),
+        //                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), 1, 1, newestSorter),
+        //                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), 1, 1, priorTsSorter) };
+        Param[] params =
+                new Param[] { new Param(gen, new OptBlockSelector(), new MinDeclineOptUpdate(), newestSorter) };
 
         Future[][] results = new Future[factors.length][params.length];
 
@@ -119,6 +124,7 @@ public class GCExperiment {
             public Result call() throws Exception {
                 IntArrayList lpids = load(fillFactor);
                 Simulator sim = new Simulator(param, lpids.size());
+                sim.load(lpids.toIntArray());
                 long totalPages = (long) Simulator.TOTAL_PAGES * SCALE_FACTOR;
                 sim.run(totalPages);
                 return new Result(fillFactor, skewness, sim.formatWriteCost(), sim.formatGCCost(), sim.formatE());

@@ -11,7 +11,6 @@ class Block {
     double updateTsSum = 0;
     boolean isGC = false;
     long closedTs;
-
     double updateFreqSum = 0;
 
     // used by GC
@@ -37,7 +36,6 @@ class Block {
 
         this.updateTsSum += ts;
         updateFreqSum -= updateFreq;
-        assert (this.updateFreqSum >= 0);
         this.avail++;
     }
 
