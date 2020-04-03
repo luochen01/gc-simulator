@@ -49,10 +49,7 @@ class Param {
 public class Simulator {
 
     public static final int TOTAL_BLOCKS = 12800; // 100GB
-    //public static final int TOTAL_BLOCKS = 1280; // 100GB
-
-    public static final int BLOCK_SIZE = 2048; // 8MB
-
+    public static final int BLOCK_SIZE = 512; // 2MB
     public static final int TOTAL_PAGES = TOTAL_BLOCKS * BLOCK_SIZE;
 
     public static final int GC_TRIGGER_BLOCKS = 32;

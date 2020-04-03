@@ -23,7 +23,7 @@ class MinDecline implements ScoreComputer {
     }
 }
 
-class MinDeclineOptUpdate implements ScoreComputer {
+class MinDeclineOpt implements ScoreComputer {
     @Override
     public double compute(Simulator sim, Block block) {
         if (block.count - block.avail == 0) {

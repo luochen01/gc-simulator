@@ -79,11 +79,16 @@ public class GCExperiment {
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-        //        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), 1, 1, newestSorter),
-        //                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), 1, 1, newestSorter),
-        //                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), 1, 1, newestSorter),
-        //                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), 1, 1, priorTsSorter) };
-        Param[] params = new Param[] { getSortParam(gen, BATCH_BLOCKS) };
+        Param[] params = new Param[] {
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null, BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null, BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(), newestSorter,
+                        BATCH_BLOCKS),
+                new Param(gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE), NoBlockSelector.INSTANCE,
+                        new MinDecline(), priorTsSorter, BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(), null,
+                        BATCH_BLOCKS) };
+
         Future[][] results = new Future[factors.length][params.length];
         for (int i = 0; i < factors.length; i++) {
             for (int j = 0; j < params.length; j++) {
