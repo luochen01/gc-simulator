@@ -8,18 +8,18 @@ public interface ScoreComputer {
     public String name();
 }
 
-class MinDeclinePriorTs implements ScoreComputer {
+class MinDecline implements ScoreComputer {
 
     @Override
     public double compute(Simulator sim, Block block) {
         double E = (double) block.avail / Simulator.BLOCK_SIZE;
-        double age = (sim.currentTs - block.priorTsSum / Simulator.BLOCK_SIZE) / 2;
+        double age = sim.currentTs - block.priorTs();
         return (1 - E) / (E * E) / age;
     }
 
     @Override
     public String name() {
-        return "min-decline-prior-ts";
+        return "min-decline";
     }
 }
 
@@ -36,7 +36,7 @@ class MinDeclineOptUpdate implements ScoreComputer {
 
     @Override
     public String name() {
-        return "min-decline-opt-update-freq";
+        return "min-decline-opt";
     }
 }
 

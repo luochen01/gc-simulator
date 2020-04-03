@@ -16,6 +16,8 @@ import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 public class TraceExperiment {
     //
+
+    private static final int BATCH_BLOCKS = 64;
     private static final String basePath = "/home/luochen/experiment/memory/";
     private static final int[] scaleFactors = new int[] { 350, 420, 490, 560 };
     private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
@@ -41,10 +43,15 @@ public class TraceExperiment {
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(0.0);
-        Param[] params = new Param[] { new Param(gen, NoBlockSelector.INSTANCE, new Oldest(), newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MaxAvail(), newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new Berkeley(), newestSorter),
-                new Param(gen, NoBlockSelector.INSTANCE, new MinDeclinePriorTs(), priorTsSorter) };
+        Param[] params = new Param[] {
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), newestSorter,
+                        BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), newestSorter,
+                        BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(), newestSorter,
+                        BATCH_BLOCKS),
+                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter,
+                        BATCH_BLOCKS) };
 
         Future[][] results = new Future[scaleFactors.length][params.length];
 
