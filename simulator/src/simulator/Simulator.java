@@ -48,7 +48,7 @@ class Param {
 
 public class Simulator {
 
-    public static final int TOTAL_BLOCKS = 12800; // 100GB
+    public static final int TOTAL_BLOCKS = 51200; // 100GB
     public static final int BLOCK_SIZE = 512; // 2MB
     public static final int TOTAL_PAGES = TOTAL_BLOCKS * BLOCK_SIZE;
 
@@ -101,7 +101,7 @@ public class Simulator {
             write(lpids[i]);
             if (i % progress == 0) {
                 System.out.println(String.format("Simulation %s/%s loaded %d/%d.", gen.name(),
-                        param.scoreComputer.name(), i, progress));
+                        param.scoreComputer.name(), i, maxLpid));
             }
         }
         writeBuffer.flush(this);
@@ -155,8 +155,8 @@ public class Simulator {
             prevBlock = blocks[getBlockIndex(addr)];
         }
         writeBuffer.write(this, lpid, currentTs, prevBlock);
-        writes++;
         currentTs++;
+        writes++;
     }
 
     public void writeLpidToBlock(int lpid, long ts) {
@@ -175,14 +175,22 @@ public class Simulator {
             userBlock = getFreeBlock(index);
             userBlocks.set(index, userBlock);
         }
+        if (prevBlock == null) {
+            lines.get(index).uniqueLpids++;
+        } else if (prevBlock.line != index) {
+            // promoted
+            lines.get(index).uniqueLpids++;
+            lines.get(prevBlock.line).uniqueLpids--;
+        }
+
         userBlock.add(lpid, ts, prevBlock != null ? prevBlock.writeTs() : 0, gen.getProb(lpid), ts);
         updateMappingTable(lpid, userBlock.blockIndex, userBlock.count - 1);
         while (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
-            runGC();
+            runGC(userBlock);
         }
     }
 
-    private void runGC() {
+    protected void runGC(Block userBlock) {
         // select the best GC block
         IntArrayList lpids = new IntArrayList();
         PriorityQueue<Block> queue = new PriorityQueue<>((b1, b2) -> -Double.compare(b1.score, b2.score));

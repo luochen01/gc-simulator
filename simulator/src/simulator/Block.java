@@ -4,6 +4,7 @@ class Line {
     final int lineIndex;
     int totalBlocks;
     int totalAvail;
+    int uniqueLpids;
 
     public Line(int lineIndex) {
         this.lineIndex = lineIndex;
@@ -13,8 +14,8 @@ class Line {
         if (totalBlocks == 0) {
             return 0;
         } else {
-            double prob = 1 - (double) totalAvail / (totalBlocks * Simulator.BLOCK_SIZE);
-            assert prob >= 0 && prob <= 1;
+            double alpha = ((double) totalBlocks * Simulator.BLOCK_SIZE - uniqueLpids) / uniqueLpids;
+            double prob = Math.pow(Math.E, -0.9 * alpha) / (1 + alpha);
             return prob;
         }
     }

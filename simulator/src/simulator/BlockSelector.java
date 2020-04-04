@@ -111,7 +111,7 @@ class OptBlockSelector implements BlockSelector {
     }
 }
 
-class AdaptiveBlockSelector implements BlockSelector {
+class MultiLogBlockSelector implements BlockSelector {
 
     final LongArrayList intervals = new LongArrayList();
     long userTotal;
@@ -131,13 +131,13 @@ class AdaptiveBlockSelector implements BlockSelector {
     }
 
     @Override
-    public AdaptiveBlockSelector clone() {
-        return new AdaptiveBlockSelector();
+    public MultiLogBlockSelector clone() {
+        return new MultiLogBlockSelector();
     }
 
     @Override
     public String name() {
-        return "adaptive";
+        return "multi-log";
     }
 
     @Override
@@ -159,7 +159,6 @@ class AdaptiveBlockSelector implements BlockSelector {
         } else {
             return block.line;
         }
-
     }
 
     @Override

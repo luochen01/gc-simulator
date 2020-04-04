@@ -85,22 +85,15 @@ class SortWriteBuffer implements WriteBuffer {
     public void flush(Simulator sim) {
         Arrays.sort(entries, 0, index);
 
-        int prevLpid = -1;
         if (reverse) {
             for (int i = index - 1; i >= 0; i--) {
                 Entry e = entries[i];
-                if (e.lpid != prevLpid) {
-                    sim.writeLpidToBlock(e.lpid, e.ts);
-                    prevLpid = e.lpid;
-                }
+                sim.writeLpidToBlock(e.lpid, e.ts);
             }
         } else {
             for (int i = 0; i < index; i++) {
                 Entry e = entries[i];
-                if (e.lpid != prevLpid) {
-                    sim.writeLpidToBlock(e.lpid, e.ts);
-                    prevLpid = e.lpid;
-                }
+                sim.writeLpidToBlock(e.lpid, e.ts);
             }
         }
         reverse = !reverse;
