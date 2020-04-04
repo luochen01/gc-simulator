@@ -51,18 +51,21 @@ public class GCExperiment {
 
     public static void main(String[] args) throws Exception {
         double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
-        //double[] skews = new double[] { 0.99 };
         for (double skew : skews) {
             varFillFactor(ZIPF_FACTORS, skew);
         }
 
         varFillFactor(VLDB_FACTORS, 1.0);
-
+        //test();
         executor.shutdown();
     }
 
+    private static void test() throws IOException, InterruptedException, ExecutionException {
+        varFillFactor(new double[] { 1 / 1.3 }, 1.0);
+    }
+
     private static Param getAdaptiveParam(LpidGeneratorFactory gen) {
-        return new Param(gen, NoWriteBuffer.INSTANCE, new AdaptiveBlockSelector(), new MinDecline(), null,
+        return new Param(gen, NoWriteBuffer.INSTANCE, new MultiLogBlockSelector(), new MinDecline(), null,
                 BATCH_BLOCKS);
     }
 
@@ -88,6 +91,8 @@ public class GCExperiment {
                         new MinDecline(), priorTsSorter, BATCH_BLOCKS),
                 new Param(gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(), null,
                         BATCH_BLOCKS) };
+
+        //Param[] params = new Param[] { getSortParam(gen, BATCH_BLOCKS) };
 
         Future[][] results = new Future[factors.length][params.length];
         for (int i = 0; i < factors.length; i++) {
@@ -148,8 +153,8 @@ public class GCExperiment {
                 sim.load(lpids.toIntArray());
                 long totalPages = (long) Simulator.TOTAL_PAGES * SCALE_FACTOR;
                 sim.run(totalPages);
-                if (sim.blockSelector instanceof AdaptiveBlockSelector) {
-                    AdaptiveBlockSelector selector = (AdaptiveBlockSelector) sim.blockSelector;
+                if (sim.blockSelector instanceof MultiLogBlockSelector) {
+                    MultiLogBlockSelector selector = (MultiLogBlockSelector) sim.blockSelector;
                     System.out.println(String.format("user intervals: %d, user lpids: %d, intended: %d, promoted: %d",
                             selector.intervals.size(), selector.userTotal, selector.userIntended,
                             selector.userPromoted));
