@@ -113,6 +113,8 @@ class OptBlockSelector implements BlockSelector {
 
 class MultiLogBlockSelector implements BlockSelector {
 
+    final boolean oracleMode;
+
     final LongArrayList intervals = new LongArrayList();
     long userTotal;
     long userIntended;
@@ -121,23 +123,30 @@ class MultiLogBlockSelector implements BlockSelector {
     long gcTotal;
     long gcDemoted;
 
+    public MultiLogBlockSelector(boolean oracleMode) {
+        this.oracleMode = oracleMode;
+    }
+
     @Override
     public void init(Simulator sim) {
         intervals.add(1000);
         sim.lines.add(new Line(0));
         sim.userBlocks.add(sim.getFreeBlock(0));
         sim.gcBlocks.add(sim.getFreeBlock(0));
-
     }
 
     @Override
     public MultiLogBlockSelector clone() {
-        return new MultiLogBlockSelector();
+        return new MultiLogBlockSelector(oracleMode);
     }
 
     @Override
     public String name() {
-        return "multi-log";
+        return "multi-log" + (oracleMode ? "-oracle" : "");
+    }
+
+    public long getInterval(int line) {
+        return intervals.getLong(line);
     }
 
     @Override
@@ -165,12 +174,19 @@ class MultiLogBlockSelector implements BlockSelector {
     public int selectUser(Simulator sim, int lpid, Block block) {
         userTotal++;
         if (block == null) {
-            long interval = sim.currentTs;
-            return addToBlock(sim, interval);
+            return 0;
         } else {
             Line line = sim.lines.get(block.line);
-            long interval = sim.currentTs - block.writeTs();
-            double expectedInterval = Simulator.TOTAL_BLOCKS * (1 - line.validProb()) / 2;
+            double sizeRatio = line.sizeRatio(sim);
+            double interval = 0;
+            if (oracleMode) {
+                interval = sizeRatio / sim.gen.getProb(lpid);
+            } else {
+                interval = line.ts - block.lineTs();
+                //interval = sim.currentTs - block.writeTs();
+            }
+            assert interval >= 0;
+            double expectedInterval = sizeRatio * sim.gen.maxLpid() * (1 - line.validProb()) / 2;
             boolean promote = false;
             if (interval < expectedInterval) {
                 userIntended++;
@@ -197,11 +213,6 @@ class MultiLogBlockSelector implements BlockSelector {
             }
             throw new IllegalStateException();
         } else {
-            while (last < interval) {
-                last *= 2;
-                intervals.add(last);
-                sim.addLine();
-            }
             return intervals.size() - 1;
         }
     }

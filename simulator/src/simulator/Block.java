@@ -1,27 +1,76 @@
 package simulator;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 class Line {
     final int lineIndex;
-    int totalBlocks;
-    int totalAvail;
-    int uniqueLpids;
+
+    long ts;
+    private int totalAvail;
+    private int uniqueLpids;
+    private Queue<Block> blocks = new ArrayDeque<>();
 
     public Line(int lineIndex) {
         this.lineIndex = lineIndex;
     }
 
     public double validProb() {
-        if (totalBlocks == 0) {
+        if (blocks.isEmpty()) {
             return 0;
         } else {
-            double alpha = ((double) totalBlocks * Simulator.BLOCK_SIZE - uniqueLpids) / uniqueLpids;
+            double alpha = ((double) blocks.size() * Simulator.BLOCK_SIZE - uniqueLpids) / uniqueLpids;
             double prob = Math.pow(Math.E, -0.9 * alpha) / (1 + alpha);
             return prob;
         }
     }
 
+    public void add(Block block) {
+        blocks.add(block);
+    }
+
+    public Block poll() {
+        return blocks.poll();
+    }
+
+    public double overProvision(Simulator sim) {
+        return (double) (numLpids() - uniqueLpids) / sim.maxLpid;
+    }
+
+    public int numBlocks() {
+        return blocks.size();
+    }
+
     public int numLpids() {
-        return totalBlocks * Simulator.BLOCK_SIZE;
+        return blocks.size() * Simulator.BLOCK_SIZE;
+    }
+
+    public double sizeRatio(Simulator sim) {
+        return (double) uniqueLpids / sim.maxLpid;
+    }
+
+    public void addLpids(int count) {
+        uniqueLpids += count;
+    }
+
+    public void addLpid() {
+        uniqueLpids++;
+    }
+
+    public void invalidateLpid() {
+        totalAvail++;
+    }
+
+    public void removeAvails(int count) {
+        totalAvail -= count;
+    }
+
+    public void removeLpid() {
+        uniqueLpids--;
+    }
+
+    public void removeLpids(int count) {
+        uniqueLpids -= count;
     }
 
 }
@@ -34,6 +83,7 @@ class Block {
     long newestTs = 0;
     double writeTsSum = 0;
     double priorTsSum = 0;
+    double lineTsSum = 0;
     long closedTs;
     double updateFreqSum = 0;
     int line;
@@ -63,9 +113,10 @@ class Block {
         this.avail++;
     }
 
-    public void add(int lpid, long ts, double priorTs, double updateFreq, long newestTs) {
-        this.writeTsSum = writeTsSum + ts;
-        this.priorTsSum = this.priorTsSum + priorTs;
+    public void add(int lpid, long ts, double lineTs, double priorTs, double updateFreq, long newestTs) {
+        this.writeTsSum += ts;
+        this.priorTsSum += priorTs;
+        this.lineTsSum += lineTs;
         this.lpids[count] = lpid;
         this.updateFreqSum += updateFreq;
         assert (this.updateFreqSum >= 0);
@@ -79,6 +130,7 @@ class Block {
         avail = 0;
         writeTsSum = 0;
         priorTsSum = 0;
+        lineTsSum = 0;
         newestTs = 0;
         state = State.Free;
         updateFreqSum = 0;
@@ -89,12 +141,16 @@ class Block {
         return updateFreqSum / (count - avail);
     }
 
-    public long priorTs() {
-        return (long) (priorTsSum / count);
+    public double priorTs() {
+        return priorTsSum / count;
     }
 
-    public long writeTs() {
-        return (long) (writeTsSum / count);
+    public double writeTs() {
+        return writeTsSum / count;
+    }
+
+    public double lineTs() {
+        return lineTsSum / count;
     }
 
 }

@@ -44,14 +44,14 @@ public class TraceExperiment {
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(0.0);
         Param[] params = new Param[] {
-                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), newestSorter,
+                new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), newestSorter,
                         BATCH_BLOCKS),
-                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), newestSorter,
+                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), newestSorter,
                         BATCH_BLOCKS),
-                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(), newestSorter,
-                        BATCH_BLOCKS),
-                new Param(gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter,
-                        BATCH_BLOCKS) };
+                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
+                        newestSorter, BATCH_BLOCKS),
+                new Param("MinDecline", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MinDecline(),
+                        priorTsSorter, BATCH_BLOCKS) };
 
         Future[][] results = new Future[scaleFactors.length][params.length];
 

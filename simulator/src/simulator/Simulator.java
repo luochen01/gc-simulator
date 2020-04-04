@@ -9,10 +9,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import simulator.Block.State;
 
 class Param {
+    final String name;
     private final BlockSelector blockSelector;
     private final WriteBuffer writeBuffer;
     final ScoreComputer scoreComputer;
@@ -20,15 +24,15 @@ class Param {
     final int batchBlocks;
     final Comparator<Block> sorter;
 
-    public Param(LpidGeneratorFactory genFactory, WriteBuffer writeBuffer, BlockSelector blockSelector,
+    public Param(String name, LpidGeneratorFactory genFactory, WriteBuffer writeBuffer, BlockSelector blockSelector,
             ScoreComputer scoreComputer, Comparator<Block> sorter, int batchBlocks) {
+        this.name = name;
         this.genFactory = genFactory;
         this.writeBuffer = writeBuffer;
         this.blockSelector = blockSelector;
         this.scoreComputer = scoreComputer;
         this.sorter = sorter;
         this.batchBlocks = batchBlocks;
-
     }
 
     public BlockSelector createBlockSelector() {
@@ -47,10 +51,13 @@ class Param {
 }
 
 public class Simulator {
+    private static final Logger LOGGER = LogManager.getLogger(Simulator.class);
 
-    public static final int TOTAL_BLOCKS = 51200; // 100GB
+    public static final int TOTAL_PAGES = 26214400; // 100GB
+    //public static final int TOTAL_PAGES = 5242880; // 10GB
+
     public static final int BLOCK_SIZE = 512; // 2MB
-    public static final int TOTAL_PAGES = TOTAL_BLOCKS * BLOCK_SIZE;
+    public static final int TOTAL_BLOCKS = TOTAL_PAGES / BLOCK_SIZE;
 
     public static final int GC_TRIGGER_BLOCKS = 32;
 
@@ -100,8 +107,8 @@ public class Simulator {
         for (int i = 0; i < lpids.length; i++) {
             write(lpids[i]);
             if (i % progress == 0) {
-                System.out.println(String.format("Simulation %s/%s loaded %d/%d.", gen.name(),
-                        param.scoreComputer.name(), i, maxLpid));
+                LOGGER.error("Simulation {}/{}/{} loaded {}/{}.", param.name, gen.name(),
+                        (double) maxLpid / TOTAL_PAGES, i, maxLpid);
             }
         }
         writeBuffer.flush(this);
@@ -120,21 +127,19 @@ public class Simulator {
         int parts = 100;
         long progress = totalPages / parts;
 
-        for (int i = 1; i <= 10; i++) {
+        for (int i = 1; i <= parts; i++) {
             for (int j = 0; j < progress; j++) {
                 int lpid = gen.generate();
                 write(lpid);
             }
-            System.out
-                    .println(String.format("Simulation %s/%.3f/%s completed %d/%d. E: %s, write cost: %s, GC cost: %s",
-                            gen.name(), (double) maxLpid / TOTAL_PAGES, param.scoreComputer.name(), i * progress,
-                            totalPages, formatE(), formatWriteCost(), formatGCCost()));
-
-            if (i == parts / 2) {
-                prevWrites = writes;
-                prevMovedBlocks = movedBlocks;
-                prevMovedPages = movedPages;
-            }
+            LOGGER.error("Simulation {}/{}/{} completed {}/{}. E: {}, write cost: {}, GC cost: {}", param.name,
+                    gen.name(), (double) maxLpid / TOTAL_PAGES, i * progress, totalPages, formatE(), formatWriteCost(),
+                    formatGCCost());
+            //            if (i == parts / 2) {
+            //                prevWrites = writes;
+            //                prevMovedBlocks = movedBlocks;
+            //                prevMovedPages = movedPages;
+            //            }
         }
     }
 
@@ -165,32 +170,32 @@ public class Simulator {
         if (addr != -1) {
             prevBlock = blocks[getBlockIndex(addr)];
             prevBlock.invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
-            lines.get(prevBlock.line).totalAvail++;
+            lines.get(prevBlock.line).invalidateLpid();
         }
         int index = blockSelector.selectUser(this, lpid, prevBlock);
+        assert prevBlock == null || index == prevBlock.line || index == prevBlock.line - 1;
         Block userBlock = userBlocks.get(index);
         if (userBlock.count == BLOCK_SIZE) {
-            userBlock.state = State.Used;
-            userBlock.closedTs = currentTs;
+            closeBlock(userBlock);
             userBlock = getFreeBlock(index);
             userBlocks.set(index, userBlock);
         }
         if (prevBlock == null) {
-            lines.get(index).uniqueLpids++;
+            lines.get(index).addLpid();
         } else if (prevBlock.line != index) {
             // promoted
-            lines.get(index).uniqueLpids++;
-            lines.get(prevBlock.line).uniqueLpids--;
+            lines.get(index).addLpid();
+            lines.get(prevBlock.line).removeLpid();
         }
-
-        userBlock.add(lpid, ts, prevBlock != null ? prevBlock.writeTs() : 0, gen.getProb(lpid), ts);
+        userBlock.add(lpid, ts, lines.get(index).ts++, prevBlock != null ? prevBlock.writeTs() : 0, gen.getProb(lpid),
+                ts);
         updateMappingTable(lpid, userBlock.blockIndex, userBlock.count - 1);
         while (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
-            runGC(userBlock);
+            runGC(userBlock.line);
         }
     }
 
-    protected void runGC(Block userBlock) {
+    protected void runGC(int line) {
         // select the best GC block
         IntArrayList lpids = new IntArrayList();
         PriorityQueue<Block> queue = new PriorityQueue<>((b1, b2) -> -Double.compare(b1.score, b2.score));
@@ -214,60 +219,72 @@ public class Simulator {
             gcReversed = !gcReversed;
         }
         for (Block minBlock : blocks) {
-            int i = 0;
-            double priorTs = minBlock.priorTs();
-            long writeTs = minBlock.writeTs();
-            while (i < BLOCK_SIZE) {
-                lpids.clear();
-                // skip invalid lpids
-                while (i < BLOCK_SIZE && minBlock.lpids[i] < 0) {
-                    i++;
-                }
-                // find contiguous valid lpids
-                while (i < BLOCK_SIZE && minBlock.lpids[i] >= 0) {
-                    lpids.add(minBlock.lpids[i]);
-                    i++;
-                }
-                if (!lpids.isEmpty()) {
-                    int index = this.blockSelector.selectGC(this, lpids, minBlock);
-                    Block gcBlock = gcBlocks.get(index);
-                    // process lpids
-                    int count = lpids.size();
-                    for (int j = 0; j < count; j++) {
-                        if (gcBlock.count == BLOCK_SIZE) {
-                            gcBlock.state = State.Used;
-                            gcBlock.closedTs = currentTs;
-                            gcBlock = getFreeBlock(index);
-                            gcBlocks.set(index, gcBlock);
-                        }
-                        movedPages++;
-                        int lpid = lpids.getInt(j);
-                        gcBlock.add(lpid, writeTs, priorTs, gen.getProb(lpid), minBlock.newestTs);
-                        updateMappingTable(lpid, gcBlock.blockIndex, gcBlock.count - 1);
+            gcBlock(lpids, minBlock);
+        }
+    }
+
+    protected void gcBlock(IntArrayList lpids, Block block) {
+        int i = 0;
+        long writeTs = (long) block.writeTs();
+        double priorTs = block.priorTs();
+        double lineTs = block.lineTs();
+        while (i < block.count) {
+            lpids.clear();
+            // skip invalid lpids
+            while (i < block.count && block.lpids[i] < 0) {
+                i++;
+            }
+            // find contiguous valid lpids
+            while (i < block.count && block.lpids[i] >= 0) {
+                lpids.add(block.lpids[i]);
+                i++;
+            }
+            if (!lpids.isEmpty()) {
+                int index = this.blockSelector.selectGC(this, lpids, block);
+                Block gcBlock = gcBlocks.get(index);
+                // process lpids
+                int count = lpids.size();
+                for (int j = 0; j < count; j++) {
+                    if (gcBlock.count == BLOCK_SIZE) {
+                        closeBlock(gcBlock);
+                        gcBlock = getFreeBlock(index);
+                        gcBlocks.set(index, gcBlock);
                     }
+                    movedPages++;
+                    int lpid = lpids.getInt(j);
+                    gcBlock.add(lpid, writeTs, index == block.line ? lineTs : 0, priorTs, gen.getProb(lpid),
+                            block.newestTs);
+                    updateMappingTable(lpid, gcBlock.blockIndex, gcBlock.count - 1);
+                }
+                if (block.line != index) {
+                    lines.get(index).addLpids(lpids.size());
+                    lines.get(block.line).removeLpids(lpids.size());
                 }
             }
-            Line line = lines.get(minBlock.line);
-            line.totalBlocks--;
-            line.totalAvail -= minBlock.avail;
-            minBlock.reset();
-            minBlock.state = State.Free;
-            freeBlocks.addLast(minBlock);
-            usedBlocks--;
-            movedBlocks++;
         }
+        Line line = lines.get(block.line);
+        line.removeAvails(block.avail);
+        block.reset();
+        block.state = State.Free;
+        freeBlocks.addLast(block);
+        usedBlocks--;
+        movedBlocks++;
+    }
+
+    protected void closeBlock(Block block) {
+        assert block.state == State.Open;
+        block.state = State.Used;
+        block.closedTs = currentTs;
     }
 
     public Block getFreeBlock(int line) {
         Block block = freeBlocks.pollFirst();
-        assert (block != null);
+        assert (block != null && line >= 0);
         assert (block.state == State.Free);
         block.reset();
         block.state = State.Open;
         block.line = line;
         usedBlocks++;
-
-        lines.get(line).totalBlocks++;
         return block;
     }
 

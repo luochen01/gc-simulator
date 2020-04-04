@@ -43,7 +43,7 @@ class SortWriteBuffer implements WriteBuffer {
         public void reset(int lpid, long ts, Block block) {
             this.lpid = lpid;
             this.ts = ts;
-            this.sortTs = block != null ? block.priorTs() : 0;
+            this.sortTs = (long) (block != null ? block.priorTs() : 0);
         }
 
         @Override
