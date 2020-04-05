@@ -51,10 +51,10 @@ public class GCExperiment {
     public static void main(String[] args) throws Exception {
         double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
         for (double skew : skews) {
-            varFillFactor(ZIPF_FACTORS, skew);
+            varFillFactorMultiLog(ZIPF_FACTORS, skew);
         }
 
-        varFillFactor(VLDB_FACTORS, 1.0);
+        varFillFactorMultiLog(VLDB_FACTORS, 1.0);
         varSortSize();
         executor.shutdown();
     }
@@ -84,7 +84,7 @@ public class GCExperiment {
             throws IOException, InterruptedException, ExecutionException {
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
         Param[] params = new Param[] { getMultiLogParam(gen, false), getMultiLogParam(gen, true) };
-        runExperiments("skew-" + skew, factors, params, skew);
+        runExperiments("multi-log-skew-" + skew, factors, params, skew);
     }
 
     private static void varFillFactor(double[] factors, double skew)
