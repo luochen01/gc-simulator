@@ -44,7 +44,7 @@ public class MultiLogSimulator extends Simulator {
         int nextLine = block.line;
         gcBlock(new IntArrayList(), block);
         if (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
-            runGC(nextLine);
+            runGC(nextLine + 1);
         }
     }
 
@@ -57,7 +57,7 @@ public class MultiLogSimulator extends Simulator {
 
     private double computeDerivativeAnalytical(Line line) {
         double s = line.sizeRatio(this);
-        double z = 1 + line.overProvision(this) / s;
+        double z = 1 + line.getBeta(this) / s;
         double W = -Math.pow(Math.E, -0.9 * (z - 1));
         MultiLogBlockSelector selector = (MultiLogBlockSelector) blockSelector;
 
@@ -68,9 +68,10 @@ public class MultiLogSimulator extends Simulator {
     }
 
     private double computeDerivativeNumerical(Line line) {
-        double a = line.overProvision(this);
-        double cost1 = cleanCost(a);
-        double cost2 = cleanCost(a + DELTA);
+        double a1 = line.getAlpha();
+        double cost1 = cleanCost(a1);
+        double a2 = line.getAlpha(this, DELTA);
+        double cost2 = cleanCost(a2);
         double d = (cost2 - cost1) / DELTA;
         return d;
     }

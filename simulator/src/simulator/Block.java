@@ -33,8 +33,16 @@ class Line {
         return blocks.poll();
     }
 
-    public double overProvision(Simulator sim) {
-        return (double) (numLpids() - uniqueLpids) / sim.maxLpid;
+    public double getAlpha() {
+        return ((double) numLpids() - uniqueLpids) / uniqueLpids;
+    }
+
+    public double getAlpha(Simulator sim, double beta) {
+        return (beta * sim.maxLpid + numLpids() - uniqueLpids) / uniqueLpids;
+    }
+
+    public double getBeta(Simulator sim) {
+        return ((double) numLpids() - uniqueLpids) / sim.maxLpid;
     }
 
     public int numBlocks() {

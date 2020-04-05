@@ -49,22 +49,23 @@ public class GCExperiment {
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
-        for (double skew : skews) {
-            varFillFactor(ZIPF_FACTORS, skew);
-        }
-
-        varFillFactor(VLDB_FACTORS, 1.0);
+        //        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
+        //        for (double skew : skews) {
+        //            varFillFactor(ZIPF_FACTORS, skew);
+        //        }
+        //
+        //        varFillFactor(VLDB_FACTORS, 1.0);
+        varSortSize();
         executor.shutdown();
     }
 
     private static void test() throws IOException, InterruptedException, ExecutionException {
-        varFillFactor(new double[] { 1 / 1.3 }, 1.0);
+        varFillFactor(new double[] { 1 / 1.2 }, 1.0);
     }
 
     private static Param getMultiLogParam(LpidGeneratorFactory gen, boolean oracleMode) {
         return new Param("Multi-Log" + (oracleMode ? "-Oracle" : ""), gen, NoWriteBuffer.INSTANCE,
-                oracleMode ? new OptBlockSelector() : new MultiLogBlockSelector(oracleMode), null, null, BATCH_BLOCKS);
+                new MultiLogBlockSelector(oracleMode), null, null, BATCH_BLOCKS);
     }
 
     private static Param getSortParam(LpidGeneratorFactory gen, int batchBlocks) {
@@ -91,17 +92,39 @@ public class GCExperiment {
                         NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS),
                 new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
                         null, BATCH_BLOCKS) };
+        runExperiments("skew-" + skew, factors, params, skew);
+    }
 
-        boolean multiLog = false;
-        //        Param[] params = new Param[] { getMultiLogParam(gen, false) };
+    private static void varSortSize() throws IOException, InterruptedException, ExecutionException {
+        double skew = 0.99;
+        double[] factors = new double[] { 0.8 };
+        Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
 
+        LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
+        Param[] params = new Param[7];
+
+        params[0] = new Param("Min-Decline-" + 0, gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                new MinDecline(), priorTsSorter, BATCH_BLOCKS);
+
+        int blocks = 1;
+        for (int i = 1; i < params.length; i++) {
+            params[i] = new Param("Min-Decline-" + blocks, gen, new SortWriteBuffer(blocks * Simulator.BLOCK_SIZE),
+                    NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS);
+            blocks *= 4;
+        }
+        runExperiments("var-sort-batch-size", factors, params, skew);
+
+    }
+
+    private static void runExperiments(String name, double[] factors, Param[] params, double skew)
+            throws IOException, InterruptedException, ExecutionException {
         Future[][] results = new Future[factors.length][params.length];
         for (int i = 0; i < factors.length; i++) {
             for (int j = 0; j < params.length; j++) {
-                results[i][j] = run(params[j], skew, factors[i], multiLog);
+                results[i][j] = run(params[j], skew, factors[i], false);
             }
         }
-        PrintWriter writer = new PrintWriter(new File("skew" + skew + ".csv"));
+        PrintWriter writer = new PrintWriter(new File(name + ".csv"));
         writer.print("fill factor\t");
         for (Param param : params) {
             writer.append(param.name + "-E\t");
