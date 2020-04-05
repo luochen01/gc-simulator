@@ -23,9 +23,10 @@ class Param {
     final LpidGeneratorFactory genFactory;
     final int batchBlocks;
     final Comparator<Block> sorter;
+    final boolean multiLog;
 
     public Param(String name, LpidGeneratorFactory genFactory, WriteBuffer writeBuffer, BlockSelector blockSelector,
-            ScoreComputer scoreComputer, Comparator<Block> sorter, int batchBlocks) {
+            ScoreComputer scoreComputer, Comparator<Block> sorter, int batchBlocks, boolean multiLog) {
         this.name = name;
         this.genFactory = genFactory;
         this.writeBuffer = writeBuffer;
@@ -33,6 +34,7 @@ class Param {
         this.scoreComputer = scoreComputer;
         this.sorter = sorter;
         this.batchBlocks = batchBlocks;
+        this.multiLog = multiLog;
     }
 
     public BlockSelector createBlockSelector() {
@@ -169,8 +171,10 @@ public class Simulator {
         Block prevBlock = null;
         if (addr != -1) {
             prevBlock = blocks[getBlockIndex(addr)];
+            if (prevBlock.state == State.Used) {
+                lines.get(prevBlock.line).invalidateLpid();
+            }
             prevBlock.invalidate(currentTs, getPageIndex(addr), gen.getProb(lpid));
-            lines.get(prevBlock.line).invalidateLpid();
         }
         int index = blockSelector.selectUser(this, lpid, prevBlock);
         assert prevBlock == null || index == prevBlock.line || index == prevBlock.line - 1;
@@ -180,22 +184,19 @@ public class Simulator {
             userBlock = getFreeBlock(index);
             userBlocks.set(index, userBlock);
         }
-        if (prevBlock == null) {
-            lines.get(index).addLpid();
-        } else if (prevBlock.line != index) {
-            // promoted
-            lines.get(index).addLpid();
-            lines.get(prevBlock.line).removeLpid();
-        }
         userBlock.add(lpid, ts, lines.get(index).ts++, prevBlock != null ? prevBlock.writeTs() : 0, gen.getProb(lpid),
                 ts);
         updateMappingTable(lpid, userBlock.blockIndex, userBlock.count - 1);
+        checkGC(userBlock.line);
+    }
+
+    protected void checkGC(int line) {
         while (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
-            runGC(userBlock.line);
+            runGC(line);
         }
     }
 
-    protected void runGC(int line) {
+    protected int runGC(int line) {
         // select the best GC block
         IntArrayList lpids = new IntArrayList();
         PriorityQueue<Block> queue = new PriorityQueue<>((b1, b2) -> -Double.compare(b1.score, b2.score));
@@ -221,6 +222,7 @@ public class Simulator {
         for (Block minBlock : blocks) {
             gcBlock(lpids, minBlock);
         }
+        return -1;
     }
 
     protected void gcBlock(IntArrayList lpids, Block block) {
@@ -256,14 +258,8 @@ public class Simulator {
                             block.newestTs);
                     updateMappingTable(lpid, gcBlock.blockIndex, gcBlock.count - 1);
                 }
-                if (block.line != index) {
-                    lines.get(index).addLpids(lpids.size());
-                    lines.get(block.line).removeLpids(lpids.size());
-                }
             }
         }
-        Line line = lines.get(block.line);
-        line.removeAvails(block.avail);
         block.reset();
         block.state = State.Free;
         freeBlocks.addLast(block);

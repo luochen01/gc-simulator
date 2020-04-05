@@ -7,14 +7,21 @@ public class MultiLogSimulator extends Simulator {
 
     private static final int LINE_MIN_BLOCKS = 64;
 
-    private static final double DELTA = 0.0001;
+    private static final double DELTA = 1;
 
     public MultiLogSimulator(Param param, int maxLpid) {
         super(param, maxLpid);
     }
 
     @Override
-    protected void runGC(int line) {
+    protected void checkGC(int line) {
+        if (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
+            runGC(line);
+        }
+    }
+
+    @Override
+    protected int runGC(int line) {
         double dLine = computeDerivative(lines.get(line));
 
         double dPrev = Integer.MIN_VALUE;
@@ -40,12 +47,11 @@ public class MultiLogSimulator extends Simulator {
         }
 
         Block block = target.poll();
-        assert block != null && block.state == State.Used;
-        int nextLine = block.line;
-        gcBlock(new IntArrayList(), block);
-        if (freeBlocks.size() <= GC_TRIGGER_BLOCKS) {
-            runGC(nextLine + 1);
+        if (block != null) {
+            assert block != null && block.state == State.Used;
+            gcBlock(new IntArrayList(), block);
         }
+        return target.lineIndex;
     }
 
     private double computeDerivative(Line line) {
@@ -69,15 +75,22 @@ public class MultiLogSimulator extends Simulator {
 
     private double computeDerivativeNumerical(Line line) {
         double a1 = line.getAlpha();
-        double cost1 = cleanCost(a1);
+        if (a1 <= 0.000001) {
+            // shouldn't select this line
+            return Integer.MIN_VALUE;
+        }
+        double cost1 = cleanCost(line, a1);
         double a2 = line.getAlpha(this, DELTA);
-        double cost2 = cleanCost(a2);
+        double cost2 = cleanCost(line, a2);
         double d = (cost2 - cost1) / DELTA;
         return d;
     }
 
-    private double cleanCost(double a) {
-        return Math.pow(Math.E, -0.9 * a) / (1 + a);
+    private double cleanCost(Line line, double a) {
+        double pgc = Math.min(Math.pow(Math.E, -0.9 * a) / (1 + a), 0.99999);
+        double updateFrequency = blockSelector.updateFreq(line.lineIndex);
+        return updateFrequency * pgc / (1 - pgc);
+
     }
 
     @Override

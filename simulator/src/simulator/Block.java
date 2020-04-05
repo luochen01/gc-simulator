@@ -7,8 +7,7 @@ class Line {
     final int lineIndex;
 
     long ts;
-    private int totalAvail;
-    private int uniqueLpids;
+    private int validLpids;
     private Queue<Block> blocks = new ArrayDeque<>();
 
     public Line(int lineIndex) {
@@ -19,7 +18,7 @@ class Line {
         if (blocks.isEmpty()) {
             return 0;
         } else {
-            double alpha = ((double) blocks.size() * Simulator.BLOCK_SIZE - uniqueLpids) / uniqueLpids;
+            double alpha = ((double) blocks.size() * Simulator.BLOCK_SIZE - validLpids) / validLpids;
             double prob = Math.pow(Math.E, -0.9 * alpha) / (1 + alpha);
             return prob;
         }
@@ -27,22 +26,29 @@ class Line {
 
     public void add(Block block) {
         blocks.add(block);
+        validLpids += block.validLpids();
+        assert validLpids >= 0 && numLpids() >= validLpids;
     }
 
     public Block poll() {
-        return blocks.poll();
+        Block block = blocks.poll();
+        if (block != null) {
+            validLpids -= block.validLpids();
+            assert validLpids >= 0 && numLpids() >= validLpids;
+        }
+        return block;
     }
 
     public double getAlpha() {
-        return ((double) numLpids() - uniqueLpids) / uniqueLpids;
+        return ((double) numLpids() - validLpids) / validLpids;
     }
 
-    public double getAlpha(Simulator sim, double beta) {
-        return (beta * sim.maxLpid + numLpids() - uniqueLpids) / uniqueLpids;
+    public double getAlpha(Simulator sim, double additionalBlocks) {
+        return ((additionalBlocks + blocks.size()) * Simulator.BLOCK_SIZE - validLpids) / validLpids;
     }
 
     public double getBeta(Simulator sim) {
-        return ((double) numLpids() - uniqueLpids) / sim.maxLpid;
+        return ((double) numLpids() - validLpids) / sim.maxLpid;
     }
 
     public int numBlocks() {
@@ -54,31 +60,17 @@ class Line {
     }
 
     public double sizeRatio(Simulator sim) {
-        return (double) uniqueLpids / sim.maxLpid;
-    }
-
-    public void addLpids(int count) {
-        uniqueLpids += count;
-    }
-
-    public void addLpid() {
-        uniqueLpids++;
+        return (double) validLpids / sim.maxLpid;
     }
 
     public void invalidateLpid() {
-        totalAvail++;
+        validLpids--;
+        assert validLpids >= 0;
     }
 
-    public void removeAvails(int count) {
-        totalAvail -= count;
-    }
-
-    public void removeLpid() {
-        uniqueLpids--;
-    }
-
-    public void removeLpids(int count) {
-        uniqueLpids -= count;
+    @Override
+    public String toString() {
+        return String.format("line %d, valid %d, avail %d", lineIndex, validLpids, numLpids() - validLpids);
     }
 
 }
@@ -159,6 +151,10 @@ class Block {
 
     public double lineTs() {
         return lineTsSum / count;
+    }
+
+    public int validLpids() {
+        return count - avail;
     }
 
 }

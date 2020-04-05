@@ -21,6 +21,8 @@ interface BlockSelector {
 
     public BlockSelector clone();
 
+    public double updateFreq(int line);
+
 }
 
 class NoBlockSelector implements BlockSelector {
@@ -54,10 +56,16 @@ class NoBlockSelector implements BlockSelector {
     public NoBlockSelector clone() {
         return this;
     }
+
+    @Override
+    public double updateFreq(int line) {
+        return 0;
+    }
 }
 
 class OptBlockSelector implements BlockSelector {
     private int[] indexes;
+    private double[] probs;
 
     @Override
     public void init(Simulator sim) {
@@ -68,22 +76,22 @@ class OptBlockSelector implements BlockSelector {
         double max = gen.getMaxProb();
         Preconditions.checkState(min <= max);
         List<Double> list = new ArrayList<>();
-        double curr = 2 * min;
-        while (curr <= max) {
+        double curr = max;
+        while (curr > min) {
             list.add(curr);
-            curr *= 2;
+            curr /= 2;
         }
         list.add(curr);
         System.out.println(name() + " has " + list.size() + " lines");
         Preconditions.checkState(list.size() >= 1);
-        double[] probs = new double[list.size()];
+        probs = new double[list.size()];
         for (int i = 0; i < probs.length; i++) {
             probs[i] = list.get(i);
             sim.addLine();
         }
         int pos = 0;
-        for (int i = gen.maxLpid(); i >= 1; i--) {
-            while (gen.getProb(i) > probs[pos]) {
+        for (int i = 1; i <= gen.maxLpid(); i++) {
+            while (gen.getProb(i) < probs[pos]) {
                 pos++;
             }
             indexes[i] = pos;
@@ -102,12 +110,21 @@ class OptBlockSelector implements BlockSelector {
 
     @Override
     public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
-        return indexes[lpids.getInt(0)];
+        return block.line;
     }
 
     @Override
     public int selectUser(Simulator sim, int lpid, Block block) {
-        return indexes[lpid];
+        if (block != null) {
+            return block.line;
+        } else {
+            return indexes[lpid];
+        }
+    }
+
+    @Override
+    public double updateFreq(int line) {
+        return probs[line];
     }
 }
 
@@ -129,7 +146,7 @@ class MultiLogBlockSelector implements BlockSelector {
 
     @Override
     public void init(Simulator sim) {
-        intervals.add(1000);
+        intervals.add(1);
         sim.lines.add(new Line(0));
         sim.userBlocks.add(sim.getFreeBlock(0));
         sim.gcBlocks.add(sim.getFreeBlock(0));
@@ -168,6 +185,11 @@ class MultiLogBlockSelector implements BlockSelector {
         } else {
             return block.line;
         }
+    }
+
+    @Override
+    public double updateFreq(int line) {
+        return 1.0 / intervals.getLong(line);
     }
 
     @Override

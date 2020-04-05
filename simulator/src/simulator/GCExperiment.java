@@ -49,29 +49,42 @@ public class GCExperiment {
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        //        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
-        //        for (double skew : skews) {
-        //            varFillFactor(ZIPF_FACTORS, skew);
-        //        }
-        //
-        //        varFillFactor(VLDB_FACTORS, 1.0);
+        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
+        for (double skew : skews) {
+            varFillFactor(ZIPF_FACTORS, skew);
+        }
+
+        varFillFactor(VLDB_FACTORS, 1.0);
         varSortSize();
         executor.shutdown();
     }
 
     private static void test() throws IOException, InterruptedException, ExecutionException {
-        varFillFactor(new double[] { 1 / 1.2 }, 1.0);
+        double skew = 1.0;
+        double[] fillFactors = { 1 / 1.3 };
+
+        LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
+        Param[] params = new Param[] { getMultiLogParam(gen, true) };
+        runExperiments("skew-" + skew, fillFactors, params, skew);
     }
 
     private static Param getMultiLogParam(LpidGeneratorFactory gen, boolean oracleMode) {
         return new Param("Multi-Log" + (oracleMode ? "-Oracle" : ""), gen, NoWriteBuffer.INSTANCE,
-                new MultiLogBlockSelector(oracleMode), null, null, BATCH_BLOCKS);
+                oracleMode ? new OptBlockSelector() : new MultiLogBlockSelector(oracleMode), null, null, BATCH_BLOCKS,
+                true);
     }
 
     private static Param getSortParam(LpidGeneratorFactory gen, int batchBlocks) {
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
         return new Param("MinDecline", gen, new SortWriteBuffer(batchBlocks * Simulator.BLOCK_SIZE),
-                NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, batchBlocks);
+                NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, batchBlocks, false);
+    }
+
+    private static void varFillFactorMultiLog(double[] factors, double skew)
+            throws IOException, InterruptedException, ExecutionException {
+        LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
+        Param[] params = new Param[] { getMultiLogParam(gen, false), getMultiLogParam(gen, true) };
+        runExperiments("skew-" + skew, factors, params, skew);
     }
 
     private static void varFillFactor(double[] factors, double skew)
@@ -83,15 +96,15 @@ public class GCExperiment {
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
         Param[] params = new Param[] {
                 new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null,
-                        BATCH_BLOCKS),
+                        BATCH_BLOCKS, false),
                 new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
-                        BATCH_BLOCKS),
+                        BATCH_BLOCKS, false),
                 new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
-                        newestSorter, BATCH_BLOCKS),
+                        newestSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
-                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS),
+                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
-                        null, BATCH_BLOCKS) };
+                        null, BATCH_BLOCKS, false) };
         runExperiments("skew-" + skew, factors, params, skew);
     }
 
@@ -104,12 +117,12 @@ public class GCExperiment {
         Param[] params = new Param[7];
 
         params[0] = new Param("Min-Decline-" + 0, gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
-                new MinDecline(), priorTsSorter, BATCH_BLOCKS);
+                new MinDecline(), priorTsSorter, BATCH_BLOCKS, false);
 
         int blocks = 1;
         for (int i = 1; i < params.length; i++) {
             params[i] = new Param("Min-Decline-" + blocks, gen, new SortWriteBuffer(blocks * Simulator.BLOCK_SIZE),
-                    NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS);
+                    NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false);
             blocks *= 4;
         }
         runExperiments("var-sort-batch-size", factors, params, skew);
@@ -121,7 +134,7 @@ public class GCExperiment {
         Future[][] results = new Future[factors.length][params.length];
         for (int i = 0; i < factors.length; i++) {
             for (int j = 0; j < params.length; j++) {
-                results[i][j] = run(params[j], skew, factors[i], false);
+                results[i][j] = run(params[j], skew, factors[i]);
             }
         }
         PrintWriter writer = new PrintWriter(new File(name + ".csv"));
@@ -168,14 +181,13 @@ public class GCExperiment {
         return lpids;
     }
 
-    public static Future<Result> run(Param param, double skewness, double fillFactor, boolean multiLog)
-            throws IOException {
+    public static Future<Result> run(Param param, double skewness, double fillFactor) throws IOException {
         return executor.submit(new Callable<Result>() {
             @Override
             public Result call() throws Exception {
                 IntArrayList lpids = load(fillFactor);
-                Simulator sim =
-                        multiLog ? new MultiLogSimulator(param, lpids.size()) : new Simulator(param, lpids.size());
+                Simulator sim = param.multiLog ? new MultiLogSimulator(param, lpids.size())
+                        : new Simulator(param, lpids.size());
                 sim.load(lpids.toIntArray());
                 long totalPages = (long) Simulator.TOTAL_PAGES * SCALE_FACTOR;
                 sim.run(totalPages);
