@@ -68,8 +68,7 @@ public class GCExperiment {
 
     private static Param getMultiLogParam(LpidGeneratorFactory gen, boolean oracleMode) {
         return new Param("Multi-Log" + (oracleMode ? "-Oracle" : ""), gen, NoWriteBuffer.INSTANCE,
-                oracleMode ? new OptBlockSelector() : new MultiLogBlockSelector(oracleMode), null, null, BATCH_BLOCKS,
-                true);
+                oracleMode ? new OptBlockSelector() : new MultiLogBlockSelector(), null, null, BATCH_BLOCKS, true);
     }
 
     private static Param getSortParam(LpidGeneratorFactory gen, int batchBlocks) {

@@ -7,8 +7,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.google.common.base.Preconditions;
 
-import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 interface BlockSelector {
     public void init(Simulator sim);
@@ -130,9 +130,9 @@ class OptBlockSelector implements BlockSelector {
 
 class MultiLogBlockSelector implements BlockSelector {
 
-    final boolean oracleMode;
+    static final int MAX_LOG_INDEX = 60;
 
-    final DoubleArrayList intervals = new DoubleArrayList();
+    final LongArrayList intervals = new LongArrayList();
     long userTotal;
     long userIntended;
     long userPromoted;
@@ -140,8 +140,7 @@ class MultiLogBlockSelector implements BlockSelector {
     long gcTotal;
     long gcDemoted;
 
-    public MultiLogBlockSelector(boolean oracleMode) {
-        this.oracleMode = oracleMode;
+    public MultiLogBlockSelector() {
     }
 
     @Override
@@ -154,22 +153,25 @@ class MultiLogBlockSelector implements BlockSelector {
 
     @Override
     public MultiLogBlockSelector clone() {
-        return new MultiLogBlockSelector(oracleMode);
+        return new MultiLogBlockSelector();
     }
 
     @Override
     public String name() {
-        return "multi-log" + (oracleMode ? "-oracle" : "");
+        return "multi-log";
     }
 
-    public double getInterval(int line) {
-        return intervals.getDouble(line);
+    public long getInterval(int line) {
+        return intervals.getLong(line);
     }
 
     @Override
     public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
         assert lpids.size() > 0;
         gcTotal++;
+        if (block.line == MAX_LOG_INDEX) {
+            return block.line;
+        }
         Line line = sim.lines.get(block.line);
         double validProb = line.validProb();
         double prob = Math.pow(validProb, lpids.size());
@@ -179,7 +181,7 @@ class MultiLogBlockSelector implements BlockSelector {
             if (block.line + 1 == sim.lines.size()) {
                 // add a new line
                 sim.addLine();
-                intervals.add(intervals.getDouble(intervals.size() - 1) * 2);
+                intervals.add(intervals.getLong(intervals.size() - 1) * 2);
             }
             return block.line + 1;
         } else {
@@ -189,7 +191,7 @@ class MultiLogBlockSelector implements BlockSelector {
 
     @Override
     public double updateFreq(int line) {
-        return 1.0 / intervals.getDouble(line);
+        return 1.0 / intervals.getLong(line);
     }
 
     @Override
@@ -200,13 +202,7 @@ class MultiLogBlockSelector implements BlockSelector {
         } else {
             Line line = sim.lines.get(block.line);
             double sizeRatio = line.sizeRatio(sim);
-            double interval = 0;
-            if (oracleMode) {
-                interval = sizeRatio / sim.gen.getProb(lpid);
-            } else {
-                interval = line.ts - block.lineTs();
-                //interval = sim.currentTs - block.writeTs();
-            }
+            double interval = line.ts - block.lineTs();
             assert interval >= 0;
             double expectedInterval = sizeRatio * sim.gen.maxLpid() * (1 - line.validProb()) / 2;
             boolean promote = false;
