@@ -42,28 +42,29 @@ public class GCExperiment {
 
     private static final int THREADS = 4;
 
-    private static final double[] ZIPF_FACTORS = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
-    private static final double[] VLDB_FACTORS = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
+    //    private static final double[] ZIPF_FACTORS = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
+    //    private static final double[] VLDB_FACTORS = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
 
     private static final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
-        for (double skew : skews) {
-            varFillFactorMultiLog(ZIPF_FACTORS, skew);
-        }
-        varFillFactorMultiLog(VLDB_FACTORS, 1.0);
+        //        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
+        //        for (double skew : skews) {
+        //            varFillFactorMultiLog(ZIPF_FACTORS, skew);
+        //        }
+        //        varFillFactorMultiLog(VLDB_FACTORS, 1.0);
+        test();
         executor.shutdown();
     }
 
     private static void test() throws IOException, InterruptedException, ExecutionException {
-        double skew = 0;
-        double[] fillFactors = { 0.5 };
+        double skew = 0.99;
+        double[] fillFactors = { 0.8 };
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-        Param[] params = new Param[] { getMultiLogParam(gen, false) };
-        runExperiments("skew-" + skew, fillFactors, params, skew);
+        Param[] params = new Param[] { getMultiLogParam(gen, false), getSortParam(gen, BATCH_BLOCKS) };
+        runExperiments("trend-" + skew, fillFactors, params, skew);
     }
 
     private static Param getMultiLogParam(LpidGeneratorFactory gen, boolean oracleMode) {

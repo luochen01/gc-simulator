@@ -14,7 +14,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import simulator.TPCCLpidGenerator.TPCCLpidGeneratorFactory;
 import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 public class TraceExperiment {
@@ -23,13 +22,13 @@ public class TraceExperiment {
     private static final Logger LOGGER = LogManager.getLogger(TraceExperiment.class);
 
     private static final int BATCH_BLOCKS = 64;
-    private static final String basePath = "/home/luochen/experiment/memory/";
-    private static final int[] scaleFactors = new int[] { 350, 420, 490, 560 };
-    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
-    //
-    //    private static final String basePath = "/Users/luochen/Desktop/trace/";
-    //    private static final int[] scaleFactors = new int[] { 350, 560 };
-    //    private static final double[] stopThresholds = new double[] { 0.6, 0.9 };
+    //    private static final String basePath = "/home/luochen/experiment/memory/";
+    //    private static final int[] scaleFactors = new int[] { 350, 420, 490, 560 };
+    //    private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
+
+    private static final String basePath = "/Users/luochen/Desktop/trace/";
+    private static final int[] scaleFactors = new int[] { 350, 560 };
+    private static final double[] stopThresholds = new double[] { 0.6, 0.9 };
 
     private static final int THREADS = 4;
 
@@ -54,12 +53,12 @@ public class TraceExperiment {
                 //                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
                 //                        newestSorter, BATCH_BLOCKS, false),
                 //                new Param("MultiLog", gen, NoWriteBuffer.INSTANCE, new MultiLogBlockSelector(), null, null, 1, true),
-                new Param("MultiLog-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
-                        new OptBlockSelector(), null, null, 1, true),
-                //                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
-                //                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
-                        new OptBlockSelector(), new MinDeclineOpt(), priorTsSorter, BATCH_BLOCKS, false) };
+                //                new Param("MultiLog-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
+                //                        new OptBlockSelector(), null, null, 1, true),
+                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false), };
+        //                new Param("Min-Decline-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
+        //                        new OptBlockSelector(), new MinDeclineOpt(), priorTsSorter, BATCH_BLOCKS, false) };
 
         Future[][] results = new Future[scaleFactors.length][params.length];
 
