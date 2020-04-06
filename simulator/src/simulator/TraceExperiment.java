@@ -26,10 +26,10 @@ public class TraceExperiment {
     private static final String basePath = "/home/luochen/experiment/memory/";
     private static final int[] scaleFactors = new int[] { 350, 420, 490, 560 };
     private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
-//
-//    private static final String basePath = "/Users/luochen/Desktop/trace/";
-//    private static final int[] scaleFactors = new int[] { 560 };
-//    private static final double[] stopThresholds = new double[] { 0.9 };
+    //
+    //    private static final String basePath = "/Users/luochen/Desktop/trace/";
+    //    private static final int[] scaleFactors = new int[] { 560 };
+    //    private static final double[] stopThresholds = new double[] { 0.9 };
 
     private static final int THREADS = 4;
 
@@ -47,17 +47,17 @@ public class TraceExperiment {
 
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(0.0);
         Param[] params = new Param[] {
-                new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null,
-                        BATCH_BLOCKS, false),
-                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
-                        BATCH_BLOCKS, false),
-                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
-                        newestSorter, BATCH_BLOCKS, false),
-                new Param("MultiLog", gen, NoWriteBuffer.INSTANCE, new MultiLogBlockSelector(), null, null, 1, true),
+                //                new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null,
+                //                        BATCH_BLOCKS, false),
+                //                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
+                //                        BATCH_BLOCKS, false),
+                //                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
+                //                        newestSorter, BATCH_BLOCKS, false),
+                //                new Param("MultiLog", gen, NoWriteBuffer.INSTANCE, new MultiLogBlockSelector(), null, null, 1, true),
                 new Param("MultiLog-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
                         new OptBlockSelector(), null, null, 1, true),
-                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
-                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                //                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                //                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
                         new OptBlockSelector(), new MinDeclineOpt(), priorTsSorter, BATCH_BLOCKS, false), };
 
