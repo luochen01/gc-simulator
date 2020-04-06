@@ -6,12 +6,14 @@ import java.util.Queue;
 class Line {
     final int lineIndex;
 
+    boolean multiLog;
     long ts;
     private int validLpids;
     private Queue<Block> blocks = new ArrayDeque<>();
 
-    public Line(int lineIndex) {
+    public Line(Simulator sim, int lineIndex) {
         this.lineIndex = lineIndex;
+        multiLog = sim instanceof MultiLogSimulator;
     }
 
     public double validProb() {
@@ -64,8 +66,10 @@ class Line {
     }
 
     public void invalidateLpid() {
-        validLpids--;
-        assert validLpids >= 0;
+        if (multiLog) {
+            validLpids--;
+            assert validLpids >= 0;
+        }
     }
 
     @Override

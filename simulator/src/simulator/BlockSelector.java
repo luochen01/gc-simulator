@@ -74,6 +74,10 @@ class OptBlockSelector implements BlockSelector {
         Arrays.fill(indexes, -1);
         double min = gen.getMinProb();
         double max = gen.getMaxProb();
+        if (min > max) {
+            System.out.println("Fail to initialize opt block selector with min prob " + min + " max prob " + max);
+            return;
+        }
         Preconditions.checkState(min <= max);
         List<Double> list = new ArrayList<>();
         double curr = max;
@@ -89,12 +93,22 @@ class OptBlockSelector implements BlockSelector {
             probs[i] = list.get(i);
             sim.addLine();
         }
-        int pos = 0;
+        int progress = gen.maxLpid() / 10;
         for (int i = 1; i <= gen.maxLpid(); i++) {
-            while (gen.getProb(i) < probs[pos]) {
-                pos++;
+            double prob = gen.getProb(i);
+            if (prob > 0) {
+                boolean found = false;
+                for (int k = probs.length - 1; k >= 0; k--) {
+                    if (prob >= probs[k]) {
+                        indexes[i] = k;
+                        found = true;
+                    }
+                }
+                assert found;
             }
-            indexes[i] = pos;
+            if (i % progress == 0) {
+                System.out.println(String.format("Computed %d/%d probs", i, gen.maxLpid()));
+            }
         }
     }
 
@@ -146,9 +160,7 @@ class MultiLogBlockSelector implements BlockSelector {
     @Override
     public void init(Simulator sim) {
         intervals.add(1);
-        sim.lines.add(new Line(0));
-        sim.userBlocks.add(sim.getFreeBlock(0));
-        sim.gcBlocks.add(sim.getFreeBlock(0));
+        sim.addLine();
     }
 
     @Override

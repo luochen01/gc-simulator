@@ -119,7 +119,7 @@ public class Simulator {
 
     public void addLine() {
         int line = lines.size();
-        lines.add(new Line(line));
+        lines.add(new Line(this, line));
         userBlocks.add(getFreeBlock(line));
         gcBlocks.add(getFreeBlock(line));
     }
@@ -143,6 +143,7 @@ public class Simulator {
             //                prevMovedPages = movedPages;
             //            }
         }
+        writeBuffer.flush(this);
     }
 
     public void delete(int lpid) {

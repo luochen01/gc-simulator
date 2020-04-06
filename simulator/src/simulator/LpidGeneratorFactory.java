@@ -1,5 +1,6 @@
 package simulator;
 
+import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.commons.math3.distribution.IntegerDistribution;
@@ -64,6 +65,74 @@ class UniformLpidGenerator implements LpidGenerator {
     @Override
     public int maxLpid() {
         return maxLpid;
+    }
+
+}
+
+class TPCCLpidGenerator implements LpidGenerator {
+    public static class TPCCLpidGeneratorFactory implements LpidGeneratorFactory {
+        @Override
+        public LpidGenerator create(int maxLpid) {
+            return new TPCCLpidGenerator(Simulator.TOTAL_PAGES);
+        }
+    }
+
+    private long count;
+    private final long[] freqs;
+    private final double[] probs;
+    private double minProb = 1;
+    private double maxProb = 0;
+
+    public TPCCLpidGenerator(int maxLpid) {
+        this.freqs = new long[maxLpid];
+        this.probs = new double[maxLpid];
+        Arrays.fill(probs, -1);
+    }
+
+    public void add(int lpid) {
+        count++;
+        freqs[lpid]++;
+    }
+
+    public void compute() {
+        for (int i = 1; i < freqs.length; i++) {
+            if (freqs[i] > 0) {
+                probs[i] = (double) freqs[i] / count;
+                minProb = Math.min(minProb, probs[i]);
+                maxProb = Math.max(maxProb, probs[i]);
+            }
+        }
+
+    }
+
+    @Override
+    public int generate() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public double getProb(int lpid) {
+        return probs[lpid];
+    }
+
+    @Override
+    public double getMinProb() {
+        return minProb;
+    }
+
+    @Override
+    public double getMaxProb() {
+        return maxProb;
+    }
+
+    @Override
+    public String name() {
+        return "tpcc";
+    }
+
+    @Override
+    public int maxLpid() {
+        return freqs.length - 1;
     }
 
 }
