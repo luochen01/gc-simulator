@@ -7,8 +7,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import com.google.common.base.Preconditions;
 
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 interface BlockSelector {
     public void init(Simulator sim);
@@ -132,7 +132,7 @@ class MultiLogBlockSelector implements BlockSelector {
 
     final boolean oracleMode;
 
-    final LongArrayList intervals = new LongArrayList();
+    final DoubleArrayList intervals = new DoubleArrayList();
     long userTotal;
     long userIntended;
     long userPromoted;
@@ -162,8 +162,8 @@ class MultiLogBlockSelector implements BlockSelector {
         return "multi-log" + (oracleMode ? "-oracle" : "");
     }
 
-    public long getInterval(int line) {
-        return intervals.getLong(line);
+    public double getInterval(int line) {
+        return intervals.getDouble(line);
     }
 
     @Override
@@ -179,7 +179,7 @@ class MultiLogBlockSelector implements BlockSelector {
             if (block.line + 1 == sim.lines.size()) {
                 // add a new line
                 sim.addLine();
-                intervals.add(intervals.getLong(intervals.size() - 1) * 2);
+                intervals.add(intervals.getDouble(intervals.size() - 1) * 2);
             }
             return block.line + 1;
         } else {
@@ -189,7 +189,7 @@ class MultiLogBlockSelector implements BlockSelector {
 
     @Override
     public double updateFreq(int line) {
-        return 1.0 / intervals.getLong(line);
+        return 1.0 / intervals.getDouble(line);
     }
 
     @Override
@@ -224,18 +224,4 @@ class MultiLogBlockSelector implements BlockSelector {
         }
     }
 
-    private int addToBlock(Simulator sim, long interval) {
-        long last = intervals.getLong(intervals.size() - 1);
-        if (last >= interval) {
-            final int len = intervals.size();
-            for (int i = 0; i < len; i++) {
-                if (intervals.getLong(i) >= interval) {
-                    return i;
-                }
-            }
-            throw new IllegalStateException();
-        } else {
-            return intervals.size() - 1;
-        }
-    }
 }

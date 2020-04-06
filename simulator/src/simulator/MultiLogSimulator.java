@@ -1,9 +1,14 @@
 package simulator;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import simulator.Block.State;
 
 public class MultiLogSimulator extends Simulator {
+
+    private static final Logger LOGGER = LogManager.getLogger(MultiLogSimulator.class);
 
     private static final int LINE_MIN_BLOCKS = 64;
 
@@ -43,7 +48,8 @@ public class MultiLogSimulator extends Simulator {
         } else if (dNext >= dLine && dNext >= dPrev) {
             target = lines.get(line + 1);
         } else {
-            throw new IllegalStateException();
+            LOGGER.error("Invalid line {}, dPrev: {}, dLine: {}, dNext: {}, skip GC ", line, dPrev, dLine, dNext);
+            return -1;
         }
 
         Block block = target.poll();
