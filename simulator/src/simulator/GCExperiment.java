@@ -40,7 +40,7 @@ public class GCExperiment {
 
     private static final Random random = new Random(0);
 
-    private static final int THREADS = 4;
+    private static final int THREADS = 1;
 
     //    private static final double[] ZIPF_FACTORS = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
     //    private static final double[] VLDB_FACTORS = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
