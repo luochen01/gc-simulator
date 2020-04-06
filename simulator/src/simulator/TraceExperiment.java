@@ -28,8 +28,8 @@ public class TraceExperiment {
     private static final double[] stopThresholds = new double[] { 0.6, 0.7, 0.8, 0.9 };
     //
     //    private static final String basePath = "/Users/luochen/Desktop/trace/";
-    //    private static final int[] scaleFactors = new int[] { 560 };
-    //    private static final double[] stopThresholds = new double[] { 0.9 };
+    //    private static final int[] scaleFactors = new int[] { 350, 560 };
+    //    private static final double[] stopThresholds = new double[] { 0.6, 0.9 };
 
     private static final int THREADS = 4;
 
@@ -59,7 +59,7 @@ public class TraceExperiment {
                 //                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
                 //                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline-OPT", new TPCCLpidGeneratorFactory(), NoWriteBuffer.INSTANCE,
-                        new OptBlockSelector(), new MinDeclineOpt(), priorTsSorter, BATCH_BLOCKS, false), };
+                        new OptBlockSelector(), new MinDeclineOpt(), priorTsSorter, BATCH_BLOCKS, false) };
 
         Future[][] results = new Future[scaleFactors.length][params.length];
 
@@ -109,12 +109,13 @@ public class TraceExperiment {
                 FileMapper mapper = new FileMapper(Simulator.TOTAL_PAGES, sim);
 
                 if (sim.gen instanceof TPCCLpidGenerator) {
-                    trainGenerator((TPCCLpidGenerator) sim.gen, mapper, scaleFactor);
+                    trainGenerator((TPCCLpidGenerator) sim.gen, new FileMapper(Simulator.TOTAL_PAGES, sim),
+                            scaleFactor);
                 }
                 sim.blockSelector.init(sim);
 
                 TraceReader loadReader = new TraceReader(basePath + "load-" + scaleFactor + ".trace");
-                applyTrace("load", loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
+                applyTrace(scaleFactor, "load", loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
 
                 System.out.println(String.format("Scale factor %d completed loading. Current pages %.3f: %d/%d",
                         scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
@@ -122,7 +123,7 @@ public class TraceExperiment {
                 sim.resetStats();
 
                 TraceReader runReader = new TraceReader(basePath + "run-" + scaleFactor + ".trace");
-                applyTrace("run", runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, stopPages);
+                applyTrace(scaleFactor, "run", runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
 
                 sim.writeBuffer.flush(sim);
                 System.out.println(String.format("Scale factor %d completed running. Current pages %.3f: %d/%d",
@@ -159,10 +160,11 @@ public class TraceExperiment {
         gen.compute();
     }
 
-    private static void applyTrace(String phase, TraceReader reader, FileMapper mapper, Simulator sim, int progress,
-            int stopPages) throws IOException {
+    private static void applyTrace(int scaleFactor, String phase, TraceReader reader, FileMapper mapper, Simulator sim,
+            int progress, int stopPages) throws IOException {
         TraceOperation op = new TraceOperation();
         int i = 0;
+        long counter = 0;
         while (reader.read(op)) {
             if (op.op == TraceReader.WRITE) {
                 sim.write(mapper.write(op.file, op.page));
@@ -175,11 +177,13 @@ public class TraceExperiment {
                 LOGGER.error("Simulation {} completed {}/{}. E: {}, write cost: {}, GC cost: {}", sim.param.name, i,
                         mapper.getUsedLpids(), sim.formatE(), sim.formatWriteCost(), sim.formatGCCost());
             }
+            counter++;
             if (mapper.getUsedLpids() >= stopPages) {
                 reader.close();
                 return;
             }
         }
+        LOGGER.error("{}/{} contains {} GB writes", scaleFactor, phase, counter * 4 * 1024 / 1024 / 1024 / 1024);
     }
 
 }
