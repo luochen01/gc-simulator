@@ -61,9 +61,21 @@ public class GCExperiment {
     private static void test() throws IOException, InterruptedException, ExecutionException {
         double skew = 0.99;
         double[] fillFactors = { 0.8 };
-
+        Comparator<Block> newestSorter = (b1, b2) -> Long.compare(b1.newestTs, b2.newestTs);
+        Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-        Param[] params = new Param[] { getMultiLogParam(gen, false), getSortParam(gen, BATCH_BLOCKS) };
+        Param[] params = new Param[] {
+                new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null,
+                        BATCH_BLOCKS, false),
+                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
+                        BATCH_BLOCKS, false),
+                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
+                        newestSorter, BATCH_BLOCKS, false),
+                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
+                        null, BATCH_BLOCKS, false),
+                getMultiLogParam(gen, false), getMultiLogParam(gen, true) };
         runExperiments("trend-" + skew, fillFactors, params, skew);
     }
 
