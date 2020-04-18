@@ -238,7 +238,7 @@ public class Simulator {
                 i++;
             }
             // find contiguous valid lpids
-            while (i < block.count && block.lpids[i] >= 0) {
+            while (i < block.count && block.lpids[i] >= 0 && lpids.size() < blockSelector.maxBatchSize()) {
                 lpids.add(block.lpids[i]);
                 i++;
             }
@@ -328,6 +328,16 @@ public class Simulator {
         this.prevMovedPages = 0;
         this.writes = 0;
         this.prevWrites = 0;
+    }
+
+    public void resetTimestamps() {
+        this.currentTs = 0;
+        for (int i = 0; i < TOTAL_BLOCKS; i++) {
+            blocks[i].writeTsSum = 0;
+            blocks[i].priorTsSum = 0;
+            blocks[i].newestTs = 0;
+            blocks[i].lineTsSum = 0;
+        }
     }
 
 }

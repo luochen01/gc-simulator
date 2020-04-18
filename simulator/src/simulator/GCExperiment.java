@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLists;
+import simulator.HotColdLpidGenerator.HotColdLpidGeneratorFactory;
 import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 class Result {
@@ -40,22 +41,43 @@ public class GCExperiment {
 
     private static final Random random = new Random(0);
 
-    private static final int THREADS = 1;
+    private static final int THREADS = 4;
 
-    //    private static final double[] ZIPF_FACTORS = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
-    //    private static final double[] VLDB_FACTORS = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
+    private static final double[] ZIPF_FACTORS = new double[] { 0.5, 0.6, 0.7, 0.8, 0.9, 0.95 };
+    private static final double[] VLDB_FACTORS = new double[] { 1 / 1.1, 1 / 1.2, 1 / 1.3, 1 / 1.5, 1 / 1.75, 1 / 2.0 };
 
     private static final ThreadPoolExecutor executor =
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        //        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
-        //        for (double skew : skews) {
-        //            varFillFactorMultiLog(ZIPF_FACTORS, skew);
-        //        }
-        //        varFillFactorMultiLog(VLDB_FACTORS, 1.0);
-        test();
+        runHotCold();
         executor.shutdown();
+    }
+
+    private static void runHotCold() throws IOException, InterruptedException, ExecutionException {
+        int hotSkew = 20;
+        Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
+        LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(hotSkew);
+        Param[] params = new Param[] {
+                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
+                        BATCH_BLOCKS, false),
+                new Param("Min-Decline-NoSort-Write-GC", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                        new MinDecline(), null, BATCH_BLOCKS, false),
+                new Param("Min-Decline-NoSort-Write", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                        new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
+                        null, BATCH_BLOCKS, false), };
+        runExperiments("hotspot-80-20", ZIPF_FACTORS, params, hotSkew);
+    }
+
+    private static void runSynthetic() throws IOException, InterruptedException, ExecutionException {
+        double[] skews = new double[] { 0, 0.5, 0.75, 0.99, 1.35 };
+        for (double skew : skews) {
+            varFillFactorMultiLog(ZIPF_FACTORS, skew);
+        }
+        varFillFactorMultiLog(VLDB_FACTORS, 1.0);
     }
 
     private static void test() throws IOException, InterruptedException, ExecutionException {
@@ -64,18 +86,18 @@ public class GCExperiment {
         Comparator<Block> newestSorter = (b1, b2) -> Long.compare(b1.newestTs, b2.newestTs);
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
         LpidGeneratorFactory gen = new ZipfLpidGeneratorFactory(skew);
-        Param[] params = new Param[] {
-                new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Oldest(), null,
-                        BATCH_BLOCKS, false),
-                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
-                        BATCH_BLOCKS, false),
-                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
-                        newestSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
-                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
-                        null, BATCH_BLOCKS, false),
-                getMultiLogParam(gen, false), getMultiLogParam(gen, true) };
+        Param[] params = new Param[] { new Param("LRU", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                new Oldest(), null, BATCH_BLOCKS, false),
+                //                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
+                //                        BATCH_BLOCKS, false),
+                //                new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
+                //                        newestSorter, BATCH_BLOCKS, false),
+                //                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                //                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                //                new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
+                //                        null, BATCH_BLOCKS, false),
+                //                getMultiLogParam(gen, false), getMultiLogParam(gen, true)
+        };
         runExperiments("trend-" + skew, fillFactors, params, skew);
     }
 

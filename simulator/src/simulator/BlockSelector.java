@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.google.common.base.Preconditions;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -22,6 +25,8 @@ interface BlockSelector {
     public BlockSelector clone();
 
     public double updateFreq(int line);
+
+    public int maxBatchSize();
 
 }
 
@@ -61,9 +66,16 @@ class NoBlockSelector implements BlockSelector {
     public double updateFreq(int line) {
         return 0;
     }
+
+    @Override
+    public int maxBatchSize() {
+        return Integer.MAX_VALUE;
+    }
 }
 
 class OptBlockSelector implements BlockSelector {
+    private static final Logger LOGGER = LogManager.getLogger(OptBlockSelector.class);
+
     private int[] indexes;
     private double[] probs;
 
@@ -93,6 +105,7 @@ class OptBlockSelector implements BlockSelector {
             probs[i] = list.get(i);
             sim.addLine();
         }
+        LOGGER.error("opt block selector has {} logs", probs.length);
         int progress = gen.maxLpid() / 10;
         for (int i = 1; i <= gen.maxLpid(); i++) {
             double prob = gen.getProb(i);
@@ -107,9 +120,10 @@ class OptBlockSelector implements BlockSelector {
                 assert found;
             }
             if (i % progress == 0) {
-                System.out.println(String.format("Computed %d/%d probs", i, gen.maxLpid()));
+                LOGGER.error(String.format("Computed %d/%d probs", i, gen.maxLpid()));
             }
         }
+
     }
 
     @Override
@@ -140,10 +154,16 @@ class OptBlockSelector implements BlockSelector {
     public double updateFreq(int line) {
         return probs[line];
     }
+
+    @Override
+    public int maxBatchSize() {
+        return Integer.MAX_VALUE;
+    }
 }
 
 class MultiLogBlockSelector implements BlockSelector {
 
+    private static final Logger LOGGER = LogManager.getLogger(MultiLogBlockSelector.class);
     static final int MAX_LOG_INDEX = 60;
 
     final LongArrayList intervals = new LongArrayList();
@@ -232,4 +252,66 @@ class MultiLogBlockSelector implements BlockSelector {
         }
     }
 
+    @Override
+    public int maxBatchSize() {
+        return Integer.MAX_VALUE;
+    }
+
+    public void print() {
+        LOGGER.error("block selector has {} logs", intervals.size());
+    }
+}
+
+class HotColdBlockSelector implements BlockSelector {
+    private static final int COLD_INDEX = 0;
+    private static final int HOT_INDEX = 1;
+
+    private double baseProb;
+
+    @Override
+    public void init(Simulator sim) {
+        baseProb = 1.0 / sim.gen.maxLpid();
+        sim.addLine();
+        sim.addLine();
+    }
+
+    @Override
+    public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
+        assert lpids.size() == 1;
+        int lpid = lpids.getInt(0);
+        if (sim.gen.getProb(lpid) < baseProb) {
+            return COLD_INDEX;
+        } else {
+            return HOT_INDEX;
+        }
+    }
+
+    @Override
+    public int selectUser(Simulator sim, int lpid, Block block) {
+        if (sim.gen.getProb(lpid) < baseProb) {
+            return COLD_INDEX;
+        } else {
+            return HOT_INDEX;
+        }
+    }
+
+    @Override
+    public HotColdBlockSelector clone() {
+        return new HotColdBlockSelector();
+    }
+
+    @Override
+    public double updateFreq(int line) {
+        return 0;
+    }
+
+    @Override
+    public String name() {
+        return "hot-cold";
+    }
+
+    @Override
+    public int maxBatchSize() {
+        return 1;
+    }
 }

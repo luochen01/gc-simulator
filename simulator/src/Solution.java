@@ -1,48 +1,32 @@
 class Solution {
-    private static final int MOD = (int) (1e9 + 7);
+    public int[] processQueries(int[] queries, int m) {
+        int[] p = new int[m];
+        for (int i = 0; i < m; i++) {
+            p[i] = i + 1;
+        }
 
-    public int findGoodStrings(int n, String s1, String s2, String evil) {
-        long[][] dp = new long[n][26];
-        char e = evil.charAt(evil.length() - 1);
+        int[] result = new int[queries.length];
+        for (int i = 0; i < queries.length; i++) {
+            int index = find(p, queries[i]);
+            result[i] = index;
+            for (int j = index; j > 0; j--) {
+                p[j] = p[j - 1];
+            }
+            p[0] = queries[i];
+        }
+        return result;
+    }
 
-        for (int i = 0; i < n; i++) {
-            for (char c = 'a'; c <= 'z'; c++) {
-                if (c >= s1.charAt(i) && c <= s2.charAt(i)) {
-                    dp[i][c - 'a'] = 1;
-                }
-                for (int j = 0; j < i; j++) {
-                    // check previous strings
-                    char low = s1.charAt(j);
-                    char high = s2.charAt(j);
-                    // check all chars between low and high
-                    long sum = 0;
-                    for (char tmp = (char) (low + 1); tmp <= high - 1; tmp++) {
-                        sum += dp[i][tmp - 'a'];
-                    }
-                    dp[i][c - 'a'] = (dp[i][c - 'a'] + sum * (long) Math.pow(26, i - j - 1)) % MOD;
-                }
-                if (c == e && i + 1 >= evil.length()) {
-                    long sum = 0;
-                    if (i + 1 == evil.length()) {
-                        sum = 1;
-                    } else {
-                        for (int j = 0; j < 26; j++) {
-                            sum = (sum + dp[i - evil.length()][j]) % MOD;
-                        }
-                    }
-                    dp[i][c - 'a'] = (dp[i][c - 'a'] + MOD - sum) % MOD;
-                }
+    private int find(int[] p, int key) {
+        for (int i = 0; i < p.length; i++) {
+            if (p[i] == key) {
+                return i;
             }
         }
-        long sum = 0;
-        for (int i = 0; i < 26; i++) {
-            sum += dp[n - 1][i];
-        }
-        return (int) (sum % MOD);
-
+        return -1;
     }
 
     public static void main(String[] args) {
-        new Solution().findGoodStrings(2, "aa", "da", "b");
+        new Solution().processQueries(new int[] { 3, 1, 2, 1 }, 5);
     }
 }
