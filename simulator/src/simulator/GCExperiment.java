@@ -55,21 +55,23 @@ public class GCExperiment {
     }
 
     private static void runHotCold() throws IOException, InterruptedException, ExecutionException {
-        int hotSkew = 20;
+        int[] hotSkews = { 50, 60, 70, 80, 90 };
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
-        LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(hotSkew);
-        Param[] params = new Param[] {
-                new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
-                        BATCH_BLOCKS, false),
-                new Param("Min-Decline-NoSort-Write-GC", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
-                        new MinDecline(), null, BATCH_BLOCKS, false),
-                new Param("Min-Decline-NoSort-Write", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
-                        new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * GCSimulator.BLOCK_SIZE),
-                        NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
-                        null, BATCH_BLOCKS, false), };
-        runExperiments("hotspot-80-20", ZIPF_FACTORS, params, hotSkew);
+        for (int skew : hotSkews) {
+            LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(skew);
+            Param[] params = new Param[] {
+                    new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
+                            BATCH_BLOCKS, false),
+                    new Param("Min-Decline-NoSort-Write-GC", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                            new MinDecline(), null, BATCH_BLOCKS, false),
+                    new Param("Min-Decline-NoSort-Write", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                            new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                    new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * GCSimulator.BLOCK_SIZE),
+                            NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
+                    new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(),
+                            new MinDeclineOpt(), null, BATCH_BLOCKS, false), };
+            runExperiments("hotspot-" + skew + (100 - skew), new double[] { 0.8 }, params, skew);
+        }
     }
 
     private static void runSynthetic() throws IOException, InterruptedException, ExecutionException {
