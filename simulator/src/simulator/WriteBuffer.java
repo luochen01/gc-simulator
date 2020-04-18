@@ -5,9 +5,9 @@ import java.util.Arrays;
 interface WriteBuffer {
     public WriteBuffer clone();
 
-    public void write(Simulator sim, int lpid, long ts, Block block);
+    public void write(GCSimulator sim, int lpid, long ts, Block block);
 
-    public void flush(Simulator sim);
+    public void flush(GCSimulator sim);
 }
 
 class NoWriteBuffer implements WriteBuffer {
@@ -18,7 +18,7 @@ class NoWriteBuffer implements WriteBuffer {
     }
 
     @Override
-    public void write(Simulator sim, int lpid, long ts, Block block) {
+    public void write(GCSimulator sim, int lpid, long ts, Block block) {
         sim.writeLpidToBlock(lpid, ts);
     }
 
@@ -28,7 +28,7 @@ class NoWriteBuffer implements WriteBuffer {
     }
 
     @Override
-    public void flush(Simulator sim) {
+    public void flush(GCSimulator sim) {
 
     }
 }
@@ -74,7 +74,7 @@ class SortWriteBuffer implements WriteBuffer {
     }
 
     @Override
-    public void write(Simulator sim, int lpid, long ts, Block block) {
+    public void write(GCSimulator sim, int lpid, long ts, Block block) {
         entries[index++].reset(lpid, ts, block);
         if (index == entries.length) {
             flush(sim);
@@ -82,7 +82,7 @@ class SortWriteBuffer implements WriteBuffer {
     }
 
     @Override
-    public void flush(Simulator sim) {
+    public void flush(GCSimulator sim) {
         Arrays.sort(entries, 0, index);
 
         if (reverse) {

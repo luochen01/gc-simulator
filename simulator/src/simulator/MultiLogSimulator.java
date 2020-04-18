@@ -6,7 +6,7 @@ import org.apache.logging.log4j.Logger;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import simulator.Block.State;
 
-public class MultiLogSimulator extends Simulator {
+public class MultiLogSimulator extends GCSimulator {
 
     private static final Logger LOGGER = LogManager.getLogger(MultiLogSimulator.class);
 

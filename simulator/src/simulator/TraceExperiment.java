@@ -104,33 +104,33 @@ public class TraceExperiment {
         return executor.submit(new Callable<Result>() {
             @Override
             public Result call() throws Exception {
-                int stopPages = (int) (Simulator.TOTAL_PAGES * stopThreshold);
-                Simulator sim = param.multiLog ? new MultiLogSimulator(param, Simulator.TOTAL_PAGES)
-                        : new Simulator(param, Simulator.TOTAL_PAGES);
-                FileMapper mapper = new FileMapper(Simulator.TOTAL_PAGES, sim);
+                int stopPages = (int) (GCSimulator.TOTAL_PAGES * stopThreshold);
+                GCSimulator sim = param.multiLog ? new MultiLogSimulator(param, GCSimulator.TOTAL_PAGES)
+                        : new GCSimulator(param, GCSimulator.TOTAL_PAGES);
+                FileMapper mapper = new FileMapper(GCSimulator.TOTAL_PAGES, sim);
 
                 if (sim.gen instanceof TPCCLpidGenerator) {
-                    trainGenerator((TPCCLpidGenerator) sim.gen, new FileMapper(Simulator.TOTAL_PAGES, sim),
+                    trainGenerator((TPCCLpidGenerator) sim.gen, new FileMapper(GCSimulator.TOTAL_PAGES, sim),
                             scaleFactor);
                 }
                 sim.blockSelector.init(sim);
 
                 TraceReader loadReader = new TraceReader(basePath + "load-" + scaleFactor + ".trace");
-                applyTrace(scaleFactor, "load", loadReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
+                applyTrace(scaleFactor, "load", loadReader, mapper, sim, GCSimulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
 
                 System.out.println(String.format("Scale factor %d completed loading. Current pages %.3f: %d/%d",
-                        scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
-                        Simulator.TOTAL_PAGES));
+                        scaleFactor, (double) mapper.getUsedLpids() / GCSimulator.TOTAL_PAGES, mapper.getUsedLpids(),
+                        GCSimulator.TOTAL_PAGES));
                 sim.resetStats();
                 //sim.resetTimestamps();
 
                 TraceReader runReader = new TraceReader(basePath + "run-" + scaleFactor + ".trace");
-                applyTrace(scaleFactor, "run", runReader, mapper, sim, Simulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
+                applyTrace(scaleFactor, "run", runReader, mapper, sim, GCSimulator.TOTAL_PAGES / 10, Integer.MAX_VALUE);
 
                 sim.writeBuffer.flush(sim);
                 System.out.println(String.format("Scale factor %d completed running. Current pages %.3f: %d/%d",
-                        scaleFactor, (double) mapper.getUsedLpids() / Simulator.TOTAL_PAGES, mapper.getUsedLpids(),
-                        Simulator.TOTAL_PAGES));
+                        scaleFactor, (double) mapper.getUsedLpids() / GCSimulator.TOTAL_PAGES, mapper.getUsedLpids(),
+                        GCSimulator.TOTAL_PAGES));
 
                 return new Result(scaleFactor, 0, sim.formatWriteCost(), sim.formatGCCost(), sim.formatE());
             }
@@ -152,7 +152,7 @@ public class TraceExperiment {
         gen.compute();
     }
 
-    private static void applyTrace(int scaleFactor, String phase, TraceReader reader, FileMapper mapper, Simulator sim,
+    private static void applyTrace(int scaleFactor, String phase, TraceReader reader, FileMapper mapper, GCSimulator sim,
             int progress, int stopPages) throws IOException {
         TraceOperation op = new TraceOperation();
         int i = 0;

@@ -65,7 +65,7 @@ public class GCExperiment {
                         new MinDecline(), null, BATCH_BLOCKS, false),
                 new Param("Min-Decline-NoSort-Write", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
                         new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * GCSimulator.BLOCK_SIZE),
                         NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
                         null, BATCH_BLOCKS, false), };
@@ -108,7 +108,7 @@ public class GCExperiment {
 
     private static Param getSortParam(LpidGeneratorFactory gen, int batchBlocks) {
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
-        return new Param("MinDecline", gen, new SortWriteBuffer(batchBlocks * Simulator.BLOCK_SIZE),
+        return new Param("MinDecline", gen, new SortWriteBuffer(batchBlocks * GCSimulator.BLOCK_SIZE),
                 NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, batchBlocks, false);
     }
 
@@ -133,7 +133,7 @@ public class GCExperiment {
                         BATCH_BLOCKS, false),
                 new Param("Berkeley", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new Berkeley(),
                         newestSorter, BATCH_BLOCKS, false),
-                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * Simulator.BLOCK_SIZE),
+                new Param("Min-Decline", gen, new SortWriteBuffer(BATCH_BLOCKS * GCSimulator.BLOCK_SIZE),
                         NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false),
                 new Param("Min-Decline-OPT", gen, NoWriteBuffer.INSTANCE, new OptBlockSelector(), new MinDeclineOpt(),
                         null, BATCH_BLOCKS, false) };
@@ -153,7 +153,7 @@ public class GCExperiment {
 
         int blocks = 1;
         for (int i = 1; i < params.length; i++) {
-            params[i] = new Param("Min-Decline-" + blocks, gen, new SortWriteBuffer(blocks * Simulator.BLOCK_SIZE),
+            params[i] = new Param("Min-Decline-" + blocks, gen, new SortWriteBuffer(blocks * GCSimulator.BLOCK_SIZE),
                     NoBlockSelector.INSTANCE, new MinDecline(), priorTsSorter, BATCH_BLOCKS, false);
             blocks *= 4;
         }
@@ -203,7 +203,7 @@ public class GCExperiment {
     }
 
     private static IntArrayList load(double fillFactor) {
-        int numKeys = (int) (fillFactor * Simulator.TOTAL_PAGES);
+        int numKeys = (int) (fillFactor * GCSimulator.TOTAL_PAGES);
         IntArrayList lpids = new IntArrayList(numKeys);
         for (int i = 0; i < numKeys; i++) {
             lpids.add(i + 1);
@@ -218,10 +218,10 @@ public class GCExperiment {
             @Override
             public Result call() throws Exception {
                 IntArrayList lpids = load(fillFactor);
-                Simulator sim = param.multiLog ? new MultiLogSimulator(param, lpids.size())
-                        : new Simulator(param, lpids.size());
+                GCSimulator sim = param.multiLog ? new MultiLogSimulator(param, lpids.size())
+                        : new GCSimulator(param, lpids.size());
                 sim.load(lpids.toIntArray());
-                long totalPages = (long) Simulator.TOTAL_PAGES * SCALE_FACTOR;
+                long totalPages = (long) GCSimulator.TOTAL_PAGES * SCALE_FACTOR;
                 sim.run(totalPages);
                 if (sim.blockSelector instanceof MultiLogBlockSelector) {
                     MultiLogBlockSelector selector = (MultiLogBlockSelector) sim.blockSelector;

@@ -73,7 +73,7 @@ class TPCCLpidGenerator implements LpidGenerator {
     public static class TPCCLpidGeneratorFactory implements LpidGeneratorFactory {
         @Override
         public LpidGenerator create(int maxLpid) {
-            return new TPCCLpidGenerator(Simulator.TOTAL_PAGES);
+            return new TPCCLpidGenerator(GCSimulator.TOTAL_PAGES);
         }
     }
 

@@ -3,7 +3,7 @@ package simulator;
 public interface ScoreComputer {
     public static final double MAX_SCORE = Double.MAX_VALUE;
 
-    public double compute(Simulator sim, Block block);
+    public double compute(GCSimulator sim, Block block);
 
     public String name();
 }
@@ -11,8 +11,8 @@ public interface ScoreComputer {
 class MinDecline implements ScoreComputer {
 
     @Override
-    public double compute(Simulator sim, Block block) {
-        double E = (double) block.avail / Simulator.BLOCK_SIZE;
+    public double compute(GCSimulator sim, Block block) {
+        double E = (double) block.avail / GCSimulator.BLOCK_SIZE;
         double age = sim.currentTs - block.priorTs();
         return (1 - E) / (E * E) / age;
     }
@@ -25,11 +25,11 @@ class MinDecline implements ScoreComputer {
 
 class MinDeclineOpt implements ScoreComputer {
     @Override
-    public double compute(Simulator sim, Block block) {
+    public double compute(GCSimulator sim, Block block) {
         if (block.count - block.avail == 0) {
             return 0;
         }
-        double E = (double) block.avail / Simulator.BLOCK_SIZE;
+        double E = (double) block.avail / GCSimulator.BLOCK_SIZE;
         double updateFreq = block.updateFreqSum / (block.count - block.avail);
         return updateFreq * (1 - E) / (E * E);
     }
@@ -45,13 +45,13 @@ class Berkeley implements ScoreComputer {
     public static final double FULL_LEVEL = 0.95;
 
     @Override
-    public double compute(Simulator sim, Block block) {
-        int active = Simulator.BLOCK_SIZE - block.avail;
-        if ((double) active / Simulator.BLOCK_SIZE >= FULL_LEVEL) {
+    public double compute(GCSimulator sim, Block block) {
+        int active = GCSimulator.BLOCK_SIZE - block.avail;
+        if ((double) active / GCSimulator.BLOCK_SIZE >= FULL_LEVEL) {
             return Double.MAX_VALUE;
         }
         double age = (sim.currentTs - block.newestTs);
-        return (double) (Simulator.BLOCK_SIZE + active) / (Simulator.BLOCK_SIZE - active) / age;
+        return (double) (GCSimulator.BLOCK_SIZE + active) / (GCSimulator.BLOCK_SIZE - active) / age;
     }
 
     @Override
@@ -63,7 +63,7 @@ class Berkeley implements ScoreComputer {
 class MaxAvail implements ScoreComputer {
 
     @Override
-    public double compute(Simulator sim, Block block) {
+    public double compute(GCSimulator sim, Block block) {
         double avail = Math.max(1, block.avail);
         return 1 / avail;
     }
@@ -76,7 +76,7 @@ class MaxAvail implements ScoreComputer {
 
 class Oldest implements ScoreComputer {
     @Override
-    public double compute(Simulator sim, Block block) {
+    public double compute(GCSimulator sim, Block block) {
         double age = Math.max(sim.currentTs - block.closedTs, 1.0) / 1000 / 1000;
         return 1 / age;
     }

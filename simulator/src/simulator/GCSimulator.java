@@ -52,8 +52,8 @@ class Param {
 
 }
 
-public class Simulator {
-    private static final Logger LOGGER = LogManager.getLogger(Simulator.class);
+public class GCSimulator {
+    private static final Logger LOGGER = LogManager.getLogger(GCSimulator.class);
 
     public static final int TOTAL_PAGES = 26214400; // 100GB
     //public static final int TOTAL_PAGES = 5242880; // 10GB
@@ -88,7 +88,7 @@ public class Simulator {
     public final WriteBuffer writeBuffer;
     private boolean gcReversed;
 
-    public Simulator(Param param, int maxLpid) {
+    public GCSimulator(Param param, int maxLpid) {
         this.param = param;
         Arrays.fill(mappingTable, -1);
         blocks = new Block[TOTAL_BLOCKS];

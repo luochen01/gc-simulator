@@ -11,7 +11,7 @@ class Line {
     private int validLpids;
     private Queue<Block> blocks = new ArrayDeque<>();
 
-    public Line(Simulator sim, int lineIndex) {
+    public Line(GCSimulator sim, int lineIndex) {
         this.lineIndex = lineIndex;
         multiLog = sim instanceof MultiLogSimulator;
     }
@@ -20,7 +20,7 @@ class Line {
         if (blocks.isEmpty()) {
             return 0;
         } else {
-            double alpha = ((double) blocks.size() * Simulator.BLOCK_SIZE - validLpids) / validLpids;
+            double alpha = ((double) blocks.size() * GCSimulator.BLOCK_SIZE - validLpids) / validLpids;
             double prob = Math.pow(Math.E, -0.9 * alpha) / (1 + alpha);
             return prob;
         }
@@ -45,11 +45,11 @@ class Line {
         return ((double) numLpids() - validLpids) / validLpids;
     }
 
-    public double getAlpha(Simulator sim, double additionalBlocks) {
-        return ((additionalBlocks + blocks.size()) * Simulator.BLOCK_SIZE - validLpids) / validLpids;
+    public double getAlpha(GCSimulator sim, double additionalBlocks) {
+        return ((additionalBlocks + blocks.size()) * GCSimulator.BLOCK_SIZE - validLpids) / validLpids;
     }
 
-    public double getBeta(Simulator sim) {
+    public double getBeta(GCSimulator sim) {
         return ((double) numLpids() - validLpids) / sim.maxLpid;
     }
 
@@ -58,10 +58,10 @@ class Line {
     }
 
     public int numLpids() {
-        return blocks.size() * Simulator.BLOCK_SIZE;
+        return blocks.size() * GCSimulator.BLOCK_SIZE;
     }
 
-    public double sizeRatio(Simulator sim) {
+    public double sizeRatio(GCSimulator sim) {
         return (double) validLpids / sim.maxLpid;
     }
 

@@ -14,11 +14,11 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 
 interface BlockSelector {
-    public void init(Simulator sim);
+    public void init(GCSimulator sim);
 
-    public int selectUser(Simulator sim, int lpid, Block block);
+    public int selectUser(GCSimulator sim, int lpid, Block block);
 
-    public int selectGC(Simulator sim, IntArrayList lpids, Block block);
+    public int selectGC(GCSimulator sim, IntArrayList lpids, Block block);
 
     public String name();
 
@@ -38,7 +38,7 @@ class NoBlockSelector implements BlockSelector {
     }
 
     @Override
-    public void init(Simulator sim) {
+    public void init(GCSimulator sim) {
         sim.addLine();
     }
 
@@ -48,12 +48,12 @@ class NoBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectUser(Simulator sim, int lpid, Block block) {
+    public int selectUser(GCSimulator sim, int lpid, Block block) {
         return 0;
     }
 
     @Override
-    public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
+    public int selectGC(GCSimulator sim, IntArrayList lpids, Block block) {
         return 0;
     }
 
@@ -80,7 +80,7 @@ class OptBlockSelector implements BlockSelector {
     private double[] probs;
 
     @Override
-    public void init(Simulator sim) {
+    public void init(GCSimulator sim) {
         LpidGenerator gen = sim.gen;
         indexes = new int[gen.maxLpid() + 1];
         Arrays.fill(indexes, -1);
@@ -137,12 +137,12 @@ class OptBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
+    public int selectGC(GCSimulator sim, IntArrayList lpids, Block block) {
         return block.line;
     }
 
     @Override
-    public int selectUser(Simulator sim, int lpid, Block block) {
+    public int selectUser(GCSimulator sim, int lpid, Block block) {
         if (block != null) {
             return block.line;
         } else {
@@ -178,7 +178,7 @@ class MultiLogBlockSelector implements BlockSelector {
     }
 
     @Override
-    public void init(Simulator sim) {
+    public void init(GCSimulator sim) {
         intervals.add(1);
         sim.addLine();
     }
@@ -198,7 +198,7 @@ class MultiLogBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
+    public int selectGC(GCSimulator sim, IntArrayList lpids, Block block) {
         assert lpids.size() > 0;
         gcTotal++;
         if (block.line == MAX_LOG_INDEX) {
@@ -227,7 +227,7 @@ class MultiLogBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectUser(Simulator sim, int lpid, Block block) {
+    public int selectUser(GCSimulator sim, int lpid, Block block) {
         userTotal++;
         if (block == null) {
             return 0;
@@ -269,14 +269,14 @@ class HotColdBlockSelector implements BlockSelector {
     private double baseProb;
 
     @Override
-    public void init(Simulator sim) {
+    public void init(GCSimulator sim) {
         baseProb = 1.0 / sim.gen.maxLpid();
         sim.addLine();
         sim.addLine();
     }
 
     @Override
-    public int selectGC(Simulator sim, IntArrayList lpids, Block block) {
+    public int selectGC(GCSimulator sim, IntArrayList lpids, Block block) {
         assert lpids.size() == 1;
         int lpid = lpids.getInt(0);
         if (sim.gen.getProb(lpid) < baseProb) {
@@ -287,7 +287,7 @@ class HotColdBlockSelector implements BlockSelector {
     }
 
     @Override
-    public int selectUser(Simulator sim, int lpid, Block block) {
+    public int selectUser(GCSimulator sim, int lpid, Block block) {
         if (sim.gen.getProb(lpid) < baseProb) {
             return COLD_INDEX;
         } else {

@@ -31,12 +31,12 @@ public class FileMapper {
     private final IntArrayFIFOQueue lpidQueue;
     private final int numLpids;
 
-    private final Simulator sim;
+    private final GCSimulator sim;
 
     // file id -> (page id -> lpid)
     private final Int2ObjectMap<Int2IntMap> fileMap = new Int2ObjectOpenHashMap<>();
 
-    public FileMapper(int numLpids, Simulator sim) {
+    public FileMapper(int numLpids, GCSimulator sim) {
         this.sim = sim;
         this.numLpids = numLpids;
         this.lpidQueue = new IntArrayFIFOQueue(numLpids);
