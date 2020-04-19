@@ -51,7 +51,7 @@ public class GCExperiment {
             new ThreadPoolExecutor(THREADS, THREADS, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     public static void main(String[] args) throws Exception {
-        runHotCold();
+        runUniform();
         executor.shutdown();
     }
 
@@ -74,6 +74,17 @@ public class GCExperiment {
                             new MinDeclineOpt(), null, BATCH_BLOCKS, false), };
             runExperiments("hotspot-" + skew + (100 - skew), new double[] { 0.8 }, params, skew);
         }
+    }
+
+    private static void runUniform() throws IOException, InterruptedException, ExecutionException {
+        double[] fillFactors =
+                { 0.975, 0.95, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2 };
+        LpidGeneratorFactory gen = new UniformLpidGeneratorFactory();
+        Param[] params = new Param[] { new Param("Oldest", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE,
+                new Oldest(), null, BATCH_BLOCKS, false) };
+
+        runExperiments("uniform", fillFactors, params, 0);
+
     }
 
     private static void runSynthetic() throws IOException, InterruptedException, ExecutionException {
