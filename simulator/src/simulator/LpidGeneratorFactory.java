@@ -32,6 +32,17 @@ class UniformLpidGenerator implements LpidGenerator {
     private final int maxLpid;
     private final double prob;
 
+    public static class UniformLpidGeneratorFactory implements LpidGeneratorFactory {
+
+        public UniformLpidGeneratorFactory() {
+        }
+
+        @Override
+        public LpidGenerator create(int maxLpid) {
+            return new UniformLpidGenerator(maxLpid);
+        }
+    }
+
     public UniformLpidGenerator(int maxLpid) {
         this.maxLpid = maxLpid;
         this.prob = 1.0 / (maxLpid);
@@ -288,6 +299,6 @@ class HotColdLpidGenerator implements LpidGenerator {
 
     @Override
     public String name() {
-        return "hot-cold";
+        return "hot-cold-" + hotSkew;
     }
 }

@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntLists;
 import simulator.HotColdLpidGenerator.HotColdLpidGeneratorFactory;
+import simulator.UniformLpidGenerator.UniformLpidGeneratorFactory;
 import simulator.ZipfLpidGenerator.ZipfLpidGeneratorFactory;
 
 class Result {
@@ -55,10 +56,11 @@ public class GCExperiment {
     }
 
     private static void runHotCold() throws IOException, InterruptedException, ExecutionException {
-        int[] hotSkews = { 50, 60, 70, 80, 90 };
+        int[] hotSkews = { 10, 20, 30, 40, 50 };
         Comparator<Block> priorTsSorter = (b1, b2) -> Double.compare(b1.priorTsSum, b2.priorTsSum);
         for (int skew : hotSkews) {
-            LpidGeneratorFactory gen = new HotColdLpidGeneratorFactory(skew);
+            LpidGeneratorFactory gen =
+                    skew != 50 ? new HotColdLpidGeneratorFactory(skew) : new UniformLpidGeneratorFactory();
             Param[] params = new Param[] {
                     new Param("Greedy", gen, NoWriteBuffer.INSTANCE, NoBlockSelector.INSTANCE, new MaxAvail(), null,
                             BATCH_BLOCKS, false),
