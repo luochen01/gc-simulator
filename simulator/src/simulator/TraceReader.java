@@ -10,6 +10,7 @@ class TraceOperation {
     byte op;
     int file;
     int page;
+    int length;
 }
 
 public class TraceReader {
@@ -45,6 +46,9 @@ public class TraceReader {
 
     public void close() throws IOException {
         stream.close();
+    }
+
+    public static void main(String[] args) {
     }
 
 }
